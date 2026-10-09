@@ -12,12 +12,6 @@ counts positive and negative words.
 
 ## In short
 
-**An everyday comparison.** Imagine a shop owner who writes a letter to
-investors every three months. Most readers look at the sales figures. This
-project asks a different question: can a careful reader tell from the *tone*
-of the letter, from how confident or worried the owner sounds, whether the shop
-will do better or worse than its neighbours over the next month?
-
 **What happened.** Stocks whose reports the language model rated most upbeat
 did better than the market over the next 20 trading days (about one month),
 and stocks it rated most gloomy did worse. The gap was small but steady. The

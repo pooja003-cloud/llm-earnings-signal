@@ -115,7 +115,7 @@ def make_figures(cfg: dict, out: dict, ev: pd.DataFrame, paths: pd.DataFrame, be
             ax.annotate(f"{r[1]:+.3f}", (max(r[1] + r[2], 0), yi), xytext=(6, 0), textcoords="offset points",
                         va="center", fontsize=9, color=INK)
         _style(ax, f"{'Demo data: ' if demo else ''}How well each score ranks the next {H} days' returns",
-               "Information coefficient (rank correlation), averaged over seasons; lines show the 95% confidence range")
+               "Information coefficient, averaged over seasons. Lines: 95% confidence range")
         ax.grid(axis="y", visible=False)
         ax.grid(axis="x", color=GRID, linewidth=0.8)
         fig.tight_layout()
