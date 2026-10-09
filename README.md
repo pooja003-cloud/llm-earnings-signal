@@ -3,7 +3,7 @@
 Every three months, each public company publishes an earnings report: a press
 release with its results and what management expects next. This project asks a
 language model (Claude, the same kind of artificial intelligence as ChatGPT) to
-read 525 of these reports and rate how upbeat or gloomy management sounds. It
+read 676 of these reports and rate how upbeat or gloomy management sounds. It
 then checks whether those ratings predict how the stock does over the following
 month, and whether the model does better than a classic method that simply
 counts positive and negative words.
@@ -14,30 +14,32 @@ counts positive and negative words.
 
 **The main test, chosen before any data were analysed:** does the model's tone
 score rank stocks by how well they do over the next 20 trading days (about one
-month)? It did, a little. The rank correlation was **+0.08** (0 means no link),
-and it was positive in 8 of 10 earnings seasons. The classic word-counting
-method scored **−0.04**, no better than chance. But with only 10 seasons the
-result falls just short of the usual bar for statistical significance
-(p = 0.08), and the pre-chosen trading strategy, rebalanced after each earnings
-season, made little after costs.
+month)? It did, a little. Across 676 reports from July 2023 to August 2026, the
+rank correlation was **+0.06** (0 means no link), and it was positive in 9 of
+13 earnings seasons. The classic word-counting method scored **−0.05**, no
+better than chance. But the result falls short of the usual bar for
+statistical significance (p = 0.09), and the pre-chosen trading strategy,
+rebalanced after each earnings season, lost a little after costs.
 
 **The most interesting pattern (exploratory):** the effect appears in the first
 few days after a report and then fades. Trades placed right after each report
-did much better than the seasonal strategy, which trades about five weeks
-later. That version holds only a few stocks at a time, so it is fragile.
+did better than the seasonal strategy, which trades about five weeks later.
+That version holds only a few stocks at a time, so it is fragile.
 
-**The clean test does not confirm a lasting effect.** Claude learned from
-internet text up to June 2026, *after* every report in this study, so it may
-have read how these stocks moved. To check, the same reports were scored by
-Llama 3.2, a smaller model whose training data ends in December 2023. On the
-417 reports from 2024 and 2025, which Llama cannot have read about, no score
-predicted returns: Claude +0.04, Llama +0.02, the word list −0.05, none of them
-statistically significant. Almost all of Claude's overall result comes from
-the 108 reports of late 2023 (+0.23). Memory, a period when tone mattered more,
-or chance could each explain that; this sample cannot tell them apart. The two
-models also read the reports quite differently (their scores correlate only
-0.39), so Llama's weak result may partly reflect weaker reading rather than
-missing memory. See the
+**The clean test does not confirm a lasting effect.** A model that learned from
+internet text written after a report may have read how the stock moved. Claude
+learned from text up to June 2026, so only the 48 reports from July and August
+2026 are truly new to it. On those 48, Claude's correlation was +0.03
+(p = 0.83): no sign of skill, but far too few reports to rule it out. As a
+second check, the same reports were scored by Llama 3.2, a smaller model whose
+training data ends in December 2023. On the 520 reports from January 2024 to
+June 2026, which Llama cannot have read about, no score predicted returns
+(Claude +0.05, Llama +0.01, the word list −0.08), none of them statistically
+significant. Most of Claude's overall result comes from the 108 reports of late
+2023 (+0.23). Memory, a period when tone mattered more, or chance could each
+explain that; this sample cannot tell them apart. The two models also read the
+reports quite differently (their scores correlate only 0.39), so Llama's weak
+result may partly reflect weaker reading rather than missing memory. See the
 [clean test](#clean-test-an-older-model-that-cannot-have-seen-what-happened)
 and the [next steps](#next-steps).
 
@@ -47,13 +49,13 @@ and the [next steps](#next-steps).
 
 | Question | Answer |
 |---|---|
-| Does the model's tone score line up with the next month's returns? | Yes, a little: a rank correlation of +0.08, positive in 8 of 10 earnings seasons. The finance word list scored −0.04. |
-| Is that just luck? | It might be. The t-statistic was 1.98; with only 10 seasons, the usual 5% significance bar is about 2.26. The p-value was 0.08, so there is roughly an 8% chance of a result this strong with no real link. |
-| How big was the difference in returns? | The most upbeat fifth of reports beat the market by 0.41% over 20 days; the most gloomy fifth trailed it by 0.57%. |
-| Could you have made money trading on it? | Not with the pre-chosen strategy: rebalancing after each earnings season gave a Sharpe ratio of only 0.21 after costs. Trading right after each report looked much better (Sharpe ratio 1.41), but that is exploratory and rests on just 2 or 3 stocks on each side on a typical day, so its margin of error is about ±0.9. |
-| How long does the effect last? | A few days. Starting the same trades 5 trading days later cut the Sharpe ratio from 1.41 to 0.45, and 10 days later it turned negative. |
+| Does the model's tone score line up with the next month's returns? | Yes, a little: a rank correlation of +0.06, positive in 9 of 13 earnings seasons. The finance word list scored −0.05. |
+| Is that just luck? | It might be. The t-statistic was 1.83; with only 13 seasons, the usual 5% significance bar is about 2.18. The p-value was 0.09, so there is roughly a 9% chance of a result this strong with no real link. |
+| How big was the difference in returns? | Small. Over 20 days the most upbeat fifth of reports roughly matched the market (−0.02%), while the most gloomy fifth trailed it by 0.41%. |
+| Could you have made money trading on it? | Not with the pre-chosen strategy: rebalancing after each earnings season gave a Sharpe ratio of −0.14 after costs. Trading right after each report looked better (Sharpe ratio 0.73), but that is exploratory and rests on just 2 stocks on each side on a typical day, so its margin of error is about ±0.64. |
+| How long does the effect last? | A few days. Starting the same trades 5 trading days later cut the Sharpe ratio from 0.73 to 0.21, and 10 days later it turned negative. |
 | Which part of the report mattered most? | What management said about **future guidance**, and how that changed since the previous quarter, had the strongest results. Comments on **customer demand** showed nothing. None of the topics is significant on its own. |
-| Did it hold up on reports a model could not have read about? | No. On the 417 reports from 2024 and 2025, Claude's correlation was +0.04 (p = 0.36) and Llama's +0.02 (p = 0.64). The overall result rests mostly on late 2023. |
+| Did it hold up on reports a model could not have read about? | No. On the 48 reports after Claude's training cutoff (July and August 2026), Claude's correlation was +0.03 (p = 0.83). On the 520 reports from January 2024 to June 2026, new to Llama, Claude scored +0.05 (p = 0.31) and Llama +0.01 (p = 0.89). The overall result rests mostly on late 2023. |
 | Does the model give the same answer twice? | Yes. Scoring the same reports a second time gave the identical guidance rating 80% of the time, and it was never more than one step apart. |
 
 ## What the numbers mean
@@ -64,9 +66,9 @@ and the [next steps](#next-steps).
 | Tone score | The model's rating from −2 (clearly negative, for example guidance cut) to +2 (clearly positive, for example guidance raised). |
 | Return above the market | The stock's return minus the return of an S&P 500 index fund over the same days. It removes the effect of the whole market going up or down. |
 | Information coefficient | How well a score *ranks* stocks by their later returns. A rank correlation from −1 to +1; 0 means no link. In investing, +0.05 to +0.10 is considered useful. |
-| t-statistic | How far a result is from zero, measured in units of its own uncertainty. The bar for "unlikely to be chance" depends on the amount of data: with 10 earnings seasons it is about 2.26. |
+| t-statistic | How far a result is from zero, measured in units of its own uncertainty. The bar for "unlikely to be chance" depends on the amount of data: with 13 earnings seasons it is about 2.18. |
 | p-value | The chance of seeing a result at least this strong if there were really no link. Below 0.05 is the usual bar for "statistically significant". |
-| Standard error | The typical size of the error in an estimate. A Sharpe ratio of 1.4 with a standard error of 0.9 could easily be anywhere from about 0.5 to 2.3. |
+| Standard error | The typical size of the error in an estimate. A Sharpe ratio of 0.7 with a standard error of 0.6 could easily be anywhere from about 0.1 to 1.3. |
 | Hit rate | How often the most upbeat and most gloomy fifths moved the way their score predicted. 50% is a coin flip. |
 | Long/short portfolio | Buy the stocks with the most upbeat reports and sell short (bet against) those with the most gloomy reports. It makes money if the first group beats the second, whatever the overall market does. |
 | Sharpe ratio | Return earned per unit of risk taken. Above 1 is good; the stock market as a whole is usually around 0.4 to 0.6. |
@@ -84,13 +86,10 @@ The section below is written automatically by `earnsig report` from the files in
 
 <!-- RESULTS:START -->
 
-> [!CAUTION]
-> **Every report in this sample is older than the language model's training cutoff (2026-06-30).** The model may have read news about how these stocks moved
-> after each report, so a good result here can come from memory rather than reading skill.
-> Treat it as a best case. A clean test needs a model trained before the reports were published
-> (see *Biases and limitations* below).
+> [!NOTE]
+> 628 of 676 reports are older than the language model's training cutoff (2026-06-30); the last row of the table uses only the 48 after it.
 
-_Sample: 525 earnings reports from 50 companies, 2023-07-07 to 2025-12-23. Scored by: Claude (claude-haiku-5-5), exact model `llama3.2:3b (digest a80c4f17acd5)`. Returns are measured above the S&P 500 index fund (SPY). Trading costs: 0.10% per trade plus 0.50% a year to borrow shares for selling short._
+_Sample: 676 earnings reports from 50 companies, 2023-07-07 to 2026-08-27. Scored by: Claude (claude-haiku-5-5). Returns are measured above the S&P 500 index fund (SPY). Trading costs: 0.10% per trade plus 0.50% a year to borrow shares for selling short._
 
 ### Main test (chosen before the data were analysed)
 
@@ -98,57 +97,57 @@ The `llm` score (future-guidance tone, with the other topics as a tie-breaker), 
 
 | Main test | Language model tone | Finance word list |
 |---|---:|---:|
-| Information coefficient: rank correlation of the score with the 20-day return above the market | +0.082 | -0.038 |
-| t-statistic across 10 seasons (5% significance needs about 2.26 with this few seasons) | 1.98 | -0.74 |
-| p-value (chance of a result this strong if there were no real link; below 0.05 is the usual bar) | 0.08 | 0.48 |
-| Earnings seasons where the correlation was positive | 80% of 10 | 50% of 10 |
-| Portfolio rebalanced each season, after costs: Sharpe ratio (± one standard error) | 0.21 (± 0.64) | -0.27 (± 0.65) |
+| Information coefficient: rank correlation of the score with the 20-day return above the market | +0.064 | -0.054 |
+| t-statistic across 13 seasons (5% significance needs about 2.18 with this few seasons) | 1.83 | -1.33 |
+| p-value (chance of a result this strong if there were no real link; below 0.05 is the usual bar) | 0.09 | 0.21 |
+| Earnings seasons where the correlation was positive | 69% of 13 | 38% of 13 |
+| Portfolio rebalanced each season, after costs: Sharpe ratio (± one standard error) | -0.14 (± 0.57) | -0.80 (± 0.65) |
 
-**Verdict on the main test:** the language model's score was positively linked to later returns (information coefficient +0.082), but the link is **not** statistically significant at the usual 5% level (p = 0.08), and the pre-chosen seasonal portfolio made little after costs. Treat the result as suggestive, not proven.
+**Verdict on the main test:** the language model's score was positively linked to later returns (information coefficient +0.064), but the link is **not** statistically significant at the usual 5% level (p = 0.09), and the pre-chosen seasonal portfolio made little after costs. Treat the result as suggestive, not proven.
 
 ### Exploratory results
 
 Everything below was examined after seeing the data. With this many variations, some will look good by luck, so none of it should be read as a finding on its own.
 
-**The 20-day portfolio is very thin.** Holding each report for 20 trading days looks much better than the main portfolio, but on a typical day it holds only 2 stocks long and 3 short, and on 23% of days only one side (the other side is then the market fund). A single stock can swing the result, which is why the delay table below jumps around and why its Sharpe ratio of 1.41 has a margin of error of about ±0.92.
+**The 20-day portfolio is very thin.** Holding each report for 20 trading days looks much better than the main portfolio, but on a typical day it holds only 2 stocks long and 2 short, and on 25% of days only one side (the other side is then the market fund). A single stock can swing the result, which is why the delay table below jumps around and why its Sharpe ratio of 0.73 has a margin of error of about ±0.64.
 
-**Why the two portfolios differ.** The link between tone and returns shows up in the first few days after a report. Starting the same trades later shows how fast it fades; the seasonal portfolio typically trades 36 calendar days after a report, after the effect has mostly gone. These five numbers are themselves noisy, so read the pattern, not each value.
+**Why the two portfolios differ.** The link between tone and returns shows up in the first few days after a report. Starting the same trades later shows how fast it fades; the seasonal portfolio typically trades 35 calendar days after a report, after the effect has mostly gone. These five numbers are themselves noisy, so read the pattern, not each value.
 
 | Trades start this many trading days later | 0 | 5 | 10 | 20 | 40 |
 |---|---:|---:|---:|---:|---:|
-| Sharpe ratio after costs | 1.41 | 0.45 | -0.60 | -0.02 | 0.43 |
+| Sharpe ratio after costs | 0.73 | 0.21 | -0.40 | 0.35 | 0.25 |
 
 #### All measures
 
 | Measure | Language model tone | Finance word list |
 |---|---:|---:|
-| Reports with a score | 525 | 525 |
-| Information coefficient: rank correlation of score with the 20-day return above the market | +0.082 | -0.038 |
-| t-statistic of the information coefficient across seasons | 1.98 | -0.74 |
-| p-value | 0.08 | 0.48 |
-| Earnings seasons where the correlation was positive | 80% of 10 | 50% of 10 |
-| Hit rate: top and bottom fifth that moved the predicted way | 55.5% | 52.6% |
-| Average 20-day return above the market, most upbeat fifth / most gloomy fifth | 0.41% / -0.57% | -0.27% / 0.12% |
-| **Long/short portfolio, rebalanced each season, after costs:** yearly return | 2.7% | -3.3% |
-| Yearly volatility (typical size of ups and downs) | 12.8% | 12.3% |
-| Sharpe ratio (return per unit of risk), after costs (before costs) | 0.21 (0.32) | -0.27 (-0.19) |
-| Standard error of that Sharpe ratio | 0.64 | 0.65 |
-| Maximum drawdown (worst fall from a peak) | -18.1% | -19.9% |
-| Turnover per rebalance (replacing every holding = 400%) | 212% | 118% |
-| Holding periods that made money | 60% | 60% |
-| **Long/short portfolio, each report held 20 trading days, after costs:** Sharpe ratio (± one standard error) | 1.41 (± 0.92) | -0.94 (± 0.77) |
-| Maximum drawdown | -14.3% | -46.6% |
-| Stocks held on a typical day, long / short | 2 / 3 | 2 / 2 |
-| Days with only one side held (other side hedged with the market fund) | 23% | 20% |
-| 20-day portfolio: alpha against the Fama-French five factors plus momentum, yearly (t-statistic) | 23.0% (1.90) | -30.4% (-2.32) |
-| **Fama-French five factors plus momentum, seasonal portfolio:** alpha, yearly return not explained by the factors (t-statistic) | 1.5% (0.22) | -7.6% (-1.20) |
-| Market beta (sensitivity to the overall stock market) | -0.09 | +0.22 |
-| Size / value / profitability / investment betas | -0.18 / -0.25 / -0.19 / +0.02 | +0.08 / -0.23 / -0.06 / -0.01 |
-| Momentum beta (tendency to hold recent winners) | +0.20 | +0.20 |
-| R-squared (share of the ups and downs explained by the factors) | 0.23 | 0.28 |
-| Information coefficient using only reports after the model's training cutoff (number of reports) | none: every report is older than the cutoff | none: every report is older than the cutoff |
+| Reports with a score | 676 | 676 |
+| Information coefficient: rank correlation of score with the 20-day return above the market | +0.064 | -0.054 |
+| t-statistic of the information coefficient across seasons | 1.83 | -1.33 |
+| p-value | 0.09 | 0.21 |
+| Earnings seasons where the correlation was positive | 69% of 13 | 38% of 13 |
+| Hit rate: top and bottom fifth that moved the predicted way | 55.6% | 48.9% |
+| Average 20-day return above the market, most upbeat fifth / most gloomy fifth | -0.02% / -0.41% | -1.01% / 0.13% |
+| **Long/short portfolio, rebalanced each season, after costs:** yearly return | -1.9% | -10.0% |
+| Yearly volatility (typical size of ups and downs) | 13.6% | 12.5% |
+| Sharpe ratio (return per unit of risk), after costs (before costs) | -0.14 (-0.03) | -0.80 (-0.72) |
+| Standard error of that Sharpe ratio | 0.57 | 0.65 |
+| Maximum drawdown (worst fall from a peak) | -26.8% | -32.3% |
+| Turnover per rebalance (replacing every holding = 400%) | 215% | 123% |
+| Holding periods that made money | 46% | 46% |
+| **Long/short portfolio, each report held 20 trading days, after costs:** Sharpe ratio (± one standard error) | 0.73 (± 0.64) | -1.39 (± 0.80) |
+| Maximum drawdown | -27.4% | -68.6% |
+| Stocks held on a typical day, long / short | 2 / 2 | 3 / 2 |
+| Days with only one side held (other side hedged with the market fund) | 25% | 21% |
+| 20-day portfolio: alpha against the Fama-French five factors plus momentum, yearly (t-statistic) | 13.2% (1.13) | -37.8% (-2.96) |
+| **Fama-French five factors plus momentum, seasonal portfolio:** alpha, yearly return not explained by the factors (t-statistic) | 2.8% (0.40) | -9.6% (-1.53) |
+| Market beta (sensitivity to the overall stock market) | -0.14 | +0.22 |
+| Size / value / profitability / investment betas | -0.12 / -0.36 / +0.02 / +0.01 | +0.13 / -0.35 / +0.17 / -0.02 |
+| Momentum beta (tendency to hold recent winners) | +0.05 | +0.05 |
+| R-squared (share of the ups and downs explained by the factors) | 0.14 | 0.20 |
+| Information coefficient using only reports after the model's training cutoff (number of reports) | +0.032 (48) | -0.013 (48) |
 
-_A note on noise: this page reports dozens of statistics, so one or two with a t-statistic above 2 are expected by chance alone. Treat the finance word list 20-day portfolio alpha (t = -2.32) as likely noise, not a finding; it was not part of the main test._
+_A note on noise: this page reports dozens of statistics, so one or two with a t-statistic above 2 are expected by chance alone. Treat the finance word list 20-day portfolio alpha (t = -2.96) as likely noise, not a finding; it was not part of the main test._
 
 ![Return after the report, by tone group](results/figures/car_by_quintile.png)
 
@@ -158,13 +157,13 @@ Each report also got separate scores for what management said about future guida
 
 | Score | Information coefficient | t-statistic | Hit rate | Sharpe ratio, seasonal portfolio | Sharpe ratio, 20-day portfolio |
 |---|---:|---:|---:|---:|---:|
-| Language model tone | +0.082 | 1.98 | 55.5% | 0.21 | 1.41 |
-| Language model: guidance | +0.059 | 1.67 | 56.0% | 0.27 | 1.55 |
-| Language model: margins | +0.067 | 1.07 | 58.4% | 0.51 | 0.56 |
-| Language model: demand | -0.007 | -0.18 | 48.8% | 0.77 | -0.05 |
-| Language model: overall tone | +0.067 | 1.17 | 54.1% | 0.52 | 0.52 |
-| Language model: change since last quarter | +0.072 | 1.73 | 56.1% | 1.12 | 0.21 |
-| Finance word list | -0.038 | -0.74 | 52.6% | -0.27 | -0.94 |
+| Language model tone | +0.064 | 1.83 | 55.6% | -0.14 | 0.73 |
+| Language model: guidance | +0.060 | 2.15 | 55.9% | -0.49 | 0.90 |
+| Language model: margins | +0.035 | 0.66 | 58.9% | 0.21 | 0.44 |
+| Language model: demand | -0.034 | -0.89 | 49.3% | 0.91 | -0.40 |
+| Language model: overall tone | +0.040 | 0.71 | 53.7% | 0.57 | 0.38 |
+| Language model: change since last quarter | +0.094 | 2.84 | 56.0% | 0.24 | 0.05 |
+| Finance word list | -0.054 | -1.33 | 48.9% | -0.80 | -1.39 |
 
 ![Information coefficient by score](results/figures/ic_by_signal.png)
 
@@ -192,24 +191,25 @@ The main results use Claude (claude-haiku-5-5), which learned from text written 
 | Measure | Claude (claude-haiku-5-5) | Llama (llama3.2:3b, run with Ollama) | Finance word list |
 |---|---:|---:|---:|
 | Training data ends | 2026-06-30 | 2023-12-31 | not applicable |
-| Reports scored | 525 | 525 | 525 |
-| Reports published after the model's training data ends | 0 | 417 | not applicable |
-| Information coefficient, all reports (rank correlation with the 20-day return above the market) | +0.082 | +0.029 | -0.038 |
-| t-statistic across seasons (5% significance needs about 2.26) | 1.98 | 0.79 | -0.74 |
-| p-value | 0.08 | 0.45 | 0.48 |
-| Hit rate (top and bottom fifth that moved the predicted way) | 55.5% | 47.8% | 52.6% |
-| Sharpe ratio, each report held 20 trading days, after costs | 1.41 | -0.49 | -0.94 |
-| Sharpe ratio, rebalanced each season, after costs | 0.21 | -0.08 | -0.27 |
-| **Information coefficient using only reports the model could not have read about** | **none: it may have read about every report** | **+0.023 (417 reports)** | not applicable |
+| Reports scored | 676 | 676 | 676 |
+| Reports published after the model's training data ends | 48 | 568 | not applicable |
+| Information coefficient, all reports (rank correlation with the 20-day return above the market) | +0.064 | +0.029 | -0.054 |
+| t-statistic across seasons (5% significance needs about 2.18) | 1.83 | 0.85 | -1.33 |
+| p-value | 0.09 | 0.41 | 0.21 |
+| Hit rate (top and bottom fifth that moved the predicted way) | 55.6% | 50.7% | 48.9% |
+| Sharpe ratio, each report held 20 trading days, after costs | 0.73 | -0.08 | -1.39 |
+| Sharpe ratio, rebalanced each season, after costs | -0.14 | 0.07 | -0.80 |
+| **Information coefficient using only reports the model could not have read about** | **+0.032 (48 reports)** | **+0.032 (568 reports)** | not applicable |
 
-**The same comparison split at the second model's training cutoff** (rank correlation of each score with the 20-day return above the market, pooled across reports, with its p-value):
+**The same comparison split at each model's training cutoff** (rank correlation of each score with the 20-day return above the market, pooled across reports, with its p-value):
 
 | Period | Reports | Claude (claude-haiku-5-5) | Llama (llama3.2:3b, run with Ollama) | Finance word list |
 |---|---:|---:|---:|---:|
-| Up to the end of December 2023 (second model may have read about these) | 108 | +0.229 (p 0.02) | +0.085 (p 0.38) | +0.036 (p 0.71) |
-| After December 2023 (second model cannot have read about these) | 417 | +0.045 (p 0.36) | +0.023 (p 0.64) | -0.046 (p 0.34) |
+| Up to the end of December 2023 (both models may have read about these) | 108 | +0.229 (p 0.02) | +0.085 (p 0.38) | +0.036 (p 0.71) |
+| January 2024 to June 2026 (new to Llama only) | 520 | +0.045 (p 0.31) | +0.006 (p 0.89) | -0.078 (p 0.08) |
+| After June 2026 (new to both models) | 48 | +0.032 (p 0.83) | +0.290 (p 0.05) | -0.013 (p 0.93) |
 
-**Do the two models read the reports alike?** On the same 525 reports they gave the identical guidance score 26% of the time and were within one step 73% of the time; the rank correlation of their scores is 0.39. That is well below the 0.7 or so that would show the two models read the reports alike, so the second model may simply be reading worse, and this test **cannot tell memory apart from weaker reading**. A larger model with an equally early cutoff would settle it.
+**Do the two models read the reports alike?** On the same 676 reports they gave the identical guidance score 26% of the time and were within one step 72% of the time; the rank correlation of their scores is 0.39. That is well below the 0.7 or so that would show the two models read the reports alike, so the second model may simply be reading worse, and this test **cannot tell memory apart from weaker reading**. A larger model with an equally early cutoff would settle it.
 
 Full tables and charts for the second model: [`results/llama/`](results/llama/).
 
@@ -219,7 +219,8 @@ Full tables and charts for the second model: [`results/llama/`](results/llama/).
 
 * **Most of Claude's edge comes from a small early sample.** Claude's rank
   correlation was +0.23 on the 108 reports up to December 2023 but only +0.05 on
-  the 417 after, even though Claude's training data covers both periods. Three
+  the 520 from January 2024 to June 2026, even though Claude's training data
+  covers both periods. Three
   explanations fit: **noise** (108 reports over about two earnings seasons is a
   small sample), **a change in market conditions** (tone may have mattered more
   in late 2023), or **better memory of older events** (more has been written
@@ -231,8 +232,14 @@ Full tables and charts for the second model: [`results/llama/`](results/llama/).
   be the likelier explanation for Claude's result. As it is, Llama may simply be
   reading worse. Running the same test with the larger Llama 3.1 8B (same
   December 2023 cutoff) would weaken that objection.
+* **Claude's own clean test is too small to settle anything.** Only 48 reports
+  (July and August 2026) are newer than Claude's training data. Claude scored
+  +0.03 on them (p = 0.83). Llama scored +0.29 (p = 0.05) on the same 48, but
+  with so few reports, and with Llama finding nothing on the 520 before them,
+  that is most likely chance.
 * **What can be said with confidence:** on the reports published after December
-  2023, none of the three scores predicted the following month's returns.
+  2023, none of the three scores reliably predicted the following month's
+  returns.
 
 ---
 
@@ -336,13 +343,13 @@ after a report (a report from late January is first traded on March 1), so it
 only works if tone predicts returns for several months. The 20-day portfolio
 tests the month right after the report directly. In this study the effect
 showed up in the 20-day portfolio and mostly faded in the seasonal one, which
-trades a median of 36 days after each report. Delaying the 20-day trades by 5
+trades a median of 35 days after each report. Delaying the 20-day trades by 5
 to 10 trading days removes most of the effect, so the market seems to catch up
 within about a week.
 
 The 20-day portfolio is also thin: with 50 companies reporting over a few weeks,
 only about a fifth of the reports open at any time fall in each extreme group,
-so on a typical day it holds 2 or 3 stocks on each side, and on about a quarter
+so on a typical day it holds 2 stocks on each side, and on about a quarter
 of days only one side (the other side is then hedged with the S&P 500 fund).
 Each side is equally weighted across the stocks it holds, and days with nothing
 held count as zero return.
@@ -369,7 +376,7 @@ settings.
 git clone https://github.com/pooja003-cloud/llm-earnings-signal && cd llm-earnings-signal
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
-pytest -q                      # 60 automated tests, about 3 seconds
+pytest -q                      # 63 automated tests, about 3 seconds
 
 earnsig demo --readme          # practice run on made-up data, no internet needed, about 20 seconds
 ```
@@ -392,8 +399,9 @@ earnsig report                 # writes the "Detailed results" section of this p
 ```
 
 Clean test with an older model, free on your own computer (needs
-[Ollama](https://ollama.com); about 3 to 4 hours for 525 reports on a Mac with
-8 gigabytes of memory):
+[Ollama](https://ollama.com); about 4 to 5 hours for 676 reports on a Mac with
+8 gigabytes of memory; the Colab notebook in `notebooks/` does it free on a
+cloud graphics card instead):
 
 ```bash
 brew install ollama && brew services start ollama
@@ -446,11 +454,14 @@ results/           all result tables, daily returns, holdings, scored reports an
   set `CONFIG = "config/llama8b.yaml"` and run it (about an hour on the free
   graphics card), then run `earnsig --config config/llama8b.yaml backtest` and
   `earnsig --config config/llama8b.yaml compare`, which adds its own section.
-* **All 1,041 reports since 2021.** They are already downloaded. Scoring the 516
+* **All 1,192 reports since 2021.** They are already downloaded. Scoring the 516
   reports from before July 2023 with Claude (set `analysis_start: "2021-01-01"`
   in `config/config.yaml`) would roughly double the number of earnings seasons
   in the main test. It adds nothing to the clean test, because all of those
   reports are older than every model's training cutoff.
+* **More reports after June 2026.** Claude's own clean test has only 48
+  reports. Each new earnings season adds about 50; rerunning `earnsig collect`,
+  `earnsig score` and the later steps with a later `end_date` grows it.
 * **Historical index membership** instead of today's large companies, to remove
   survivorship bias.
 
@@ -466,24 +477,26 @@ figures and wording can still give a company away. The only clean test uses
 reports published after the model's training cutoff, shown in the last row of
 the main results table.
 
-For Claude that test is impossible: Claude Haiku 5.5 learned from text up to
-June 2026, and every report is from July 2023 to December 2025. So the same
-reports were also scored by an older model, Llama 3.2 (3 billion parameters,
-training data up to December 2023), run free through Ollama; 417 of the 525
-reports are new to it. The [clean test](#clean-test-an-older-model-that-cannot-have-seen-what-happened)
-shows that on those 417 reports no score predicts returns, and that Claude's
-own result on them is also weak (+0.04). Llama did better on the reports it
-could have read about (+0.09) than on those it could not (+0.02), which fits
-the memory explanation, but with only 108 earlier reports that difference could
-also be chance. Llama is also a much smaller model, so part of its weaker result
-may be weaker reading.
+For Claude that test is possible only on a few reports: Claude Haiku 5.5
+learned from text up to June 2026, so only the 48 reports from July and August
+2026 are new to it, and on them its score showed no clear link to returns
+(+0.03, p = 0.83). So the same reports were also scored by an older model,
+Llama 3.2 (3 billion parameters, training data up to December 2023), run free
+through Ollama; 568 of the 676 reports are new to it. The
+[clean test](#clean-test-an-older-model-that-cannot-have-seen-what-happened)
+shows that on the 520 reports from January 2024 to June 2026 no score predicts
+returns, and that Claude's own result on them is also weak (+0.05). Llama did
+better on the reports it could have read about (+0.09) than on those 520
+(+0.01), which fits the memory explanation, but with only 108 earlier reports
+that difference could also be chance. Llama is also a much smaller model, so
+part of its weaker result may be weaker reading.
 
-**A small sample.** 50 companies over about 10 quarters is 525 reports and only
-10 earnings seasons, so every number has a wide margin of error. With 10
-seasons, a t-statistic needs to reach about 2.26 (not the familiar 2) for 5%
-significance. A Sharpe ratio measured over two and a half years has a standard
-error of about 0.6 to 0.9, as the results tables show.
-All 1,041 reports since 2021 have been downloaded; set `analysis_start` equal
+**A small sample.** 50 companies over about 13 quarters is 676 reports and only
+13 earnings seasons, so every number has a wide margin of error. With 13
+seasons, a t-statistic needs to reach about 2.18 (not the familiar 2) for 5%
+significance. A Sharpe ratio measured over about three years has a standard
+error of about 0.6, as the results tables show.
+All 1,192 reports since 2021 have been downloaded; set `analysis_start` equal
 to `start_date` in the settings to use them all.
 
 **Only today's survivors.** The list is today's large companies. Companies that

@@ -3,25 +3,25 @@
   "guidance_tone": {
     "exact_agreement": 0.925,
     "within_one": 0.975,
-    "spearman": 0.9162418109826833,
-    "weighted_kappa": 0.9154929577464789
+    "spearman": 0.9461532942659581,
+    "weighted_kappa": 0.9469026548672567
   },
   "overall_tone": {
-    "exact_agreement": 0.975,
+    "exact_agreement": 0.95,
     "within_one": 1.0,
-    "spearman": 0.9578163223413232,
-    "weighted_kappa": 0.962962962962963
+    "spearman": 0.9177777777777777,
+    "weighted_kappa": 0.9374021909233177
   },
   "margins_tone": {
     "exact_agreement": 1.0,
     "within_one": 1.0,
-    "spearman": 0.9999999999999999,
+    "spearman": 1.0,
     "weighted_kappa": 1.0
   },
   "demand_tone": {
     "exact_agreement": 1.0,
     "within_one": 1.0,
-    "spearman": 1.0,
+    "spearman": 0.9999999999999999,
     "weighted_kappa": 1.0
   }
 }

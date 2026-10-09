@@ -112,3 +112,18 @@ def test_period_table_three_periods(tmp_path):
     assert "Up to the end of December 2023" in lines[0] and "| 30 |" in lines[0]
     assert "January 2024 to June 2026 (new to Llama only)" in lines[1]
     assert "After June 2026 (new to both models)" in lines[2] and "| 30 |" in lines[2]
+
+
+def test_model_version_only_counts_this_scorers_answers(tmp_path):
+    import json as _json
+    from earnsig.analysis import model_version
+
+    paths = Paths(tmp_path, tmp_path / "res").ensure()
+    recs = [{"key": "a", "event_id": "e1", "model": "claude-code:haiku", "rep": 1, "model_id": "claude-haiku-5-5"},
+            {"key": "b", "event_id": "e1", "model": "ollama:llama3.2:3b", "rep": 1, "model_id": "llama3.2:3b (digest x)"}]
+    paths.llm_cache.write_text("\n".join(_json.dumps(r) for r in recs))
+    ev = pd.DataFrame({"event_id": ["e1"]})
+    cfg = {"paths": paths, "llm": {"provider": "claude_code", "claude_code_model": "haiku"}}
+    assert model_version(cfg, ev) == "claude-haiku-5-5"
+    cfg = {"paths": paths, "llm": {"provider": "ollama", "ollama_model": "llama3.2:3b"}}
+    assert model_version(cfg, ev) == "llama3.2:3b (digest x)"

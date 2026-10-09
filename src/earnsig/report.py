@@ -282,7 +282,8 @@ def _period_table(main_cfg: dict, other_cfg: dict, cutoffs: tuple[str, str], nam
     e = a.merge(b, on="event_id").dropna(subset=[target])
     cut_main, cut_other = pd.Timestamp(cutoffs[0]), pd.Timestamp(cutoffs[1])
     early, late = sorted([cut_main, cut_other])
-    who_early = names[1] if cut_other == early else names[0]
+    short = [n.split(" (")[0] for n in names]
+    who_early = short[1] if cut_other == early else short[0]
     periods = [(f"Up to the end of {early:%B %Y} (both models may have read about these)", e[e["t0"] <= early])]
     if late > early:
         periods.append((f"{early + pd.Timedelta(days=1):%B %Y} to {late:%B %Y} (new to {who_early} only)",

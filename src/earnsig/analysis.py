@@ -93,8 +93,12 @@ def model_version(cfg: dict, ev: pd.DataFrame) -> str | None:
     from .llm_score import read_cache
 
     ids = set(ev["event_id"])
+    llm = cfg["llm"]
+    key = {"claude_code": f"claude-code:{llm.get('claude_code_model', 'haiku')}",
+           "ollama": f"ollama:{llm.get('ollama_model', '')}"}.get(llm["provider"], llm.get("model"))
     found = sorted({r["model_id"] for r in read_cache(cfg["paths"].llm_cache).values()
-                    if r.get("model_id") and r.get("event_id") in ids and r.get("rep", 1) == 1})
+                    if r.get("model_id") and r.get("model") == key
+                    and r.get("event_id") in ids and r.get("rep", 1) == 1})
     return ", ".join(found) if found else cfg["llm"].get("model_version")
 
 
