@@ -268,8 +268,8 @@ def _model_agreement(main_cfg: dict, other_cfg: dict) -> dict:
             "within_one": ((m["llm_guidance_a"] - m["llm_guidance_b"]).abs() <= 1).mean()}
 
 
-def _period_table(main_cfg: dict, other_cfg: dict, cutoff: str, names: tuple[str, str], H: int) -> str:
-    """Information coefficient before and after the second model's training cutoff, all three scores."""
+def _period_table(main_cfg: dict, other_cfg: dict, cutoffs: tuple[str, str], names: tuple[str, str], H: int) -> str:
+    """Information coefficient in the periods each model could or could not have read about."""
     from scipy import stats
 
     target = f"car_1_{H}"
@@ -280,21 +280,27 @@ def _period_table(main_cfg: dict, other_cfg: dict, cutoff: str, names: tuple[str
     a = pd.read_csv(pa, parse_dates=["t0"])
     b = pd.read_csv(pb, usecols=["event_id", "llm"]).rename(columns={"llm": "llm_other"})
     e = a.merge(b, on="event_id").dropna(subset=[target])
-    cut = pd.Timestamp(cutoff)
-    periods = [(f"Up to the end of {cut:%B %Y} (second model may have read about these)", e[e["t0"] <= cut]),
-               (f"After {cut:%B %Y} (second model cannot have read about these)", e[e["t0"] > cut])]
+    cut_main, cut_other = pd.Timestamp(cutoffs[0]), pd.Timestamp(cutoffs[1])
+    early, late = sorted([cut_main, cut_other])
+    who_early = names[1] if cut_other == early else names[0]
+    periods = [(f"Up to the end of {early:%B %Y} (both models may have read about these)", e[e["t0"] <= early])]
+    if late > early:
+        periods.append((f"{early + pd.Timedelta(days=1):%B %Y} to {late:%B %Y} (new to {who_early} only)",
+                        e[(e["t0"] > early) & (e["t0"] <= late)]))
+    periods.append((f"After {late:%B %Y} (new to both models)", e[e["t0"] > late]))
     head = (f"| Period | Reports | {names[0]} | {names[1]} | Finance word list |\n"
             "|---|---:|---:|---:|---:|")
     rows = []
     for label, d in periods:
         if len(d) < 10:
+            rows.append(f"| {label} | {len(d)} | too few reports | too few reports | too few reports |")
             continue
         cells = []
         for col in ("llm", "llm_other", "lm"):
-            r = stats.spearmanr(d[col], d[target])
+            r = stats.spearmanr(d[col], d[target], nan_policy="omit")
             cells.append(f"{r.statistic:+.3f} (p {r.pvalue:.2f})")
         rows.append(f"| {label} | {len(d)} | " + " | ".join(cells) + " |")
-    return head + "\n" + "\n".join(rows) if rows else ""
+    return head + "\n" + "\n".join(rows)
 
 
 def build_comparison(main_cfg: dict, other_cfg: dict) -> str:
@@ -339,9 +345,9 @@ def build_comparison(main_cfg: dict, other_cfg: dict) -> str:
              "predicts returns on those reports, the effect is more likely to be real reading skill; if it does not, "
              "memory is the likelier explanation for the main result. One caution: the second model is much "
              "smaller, so a weaker result can also mean it simply reads less well.", "", *table, "",
-             "**The same comparison split at the second model's training cutoff** (rank correlation of each score "
+             "**The same comparison split at each model's training cutoff** (rank correlation of each score "
              f"with the {H}-day return above the market, pooled across reports, with its p-value):", "",
-             _period_table(main_cfg, other_cfg, mb["training_cutoff"], (name_a, name_b), H), ""]
+             _period_table(main_cfg, other_cfg, (ma["training_cutoff"], mb["training_cutoff"]), (name_a, name_b), H), ""]
     agree = _model_agreement(main_cfg, other_cfg)
     if agree:
         verdict = (f"Their scores agree closely, so the second model reads the reports much like {name_a}; its "

@@ -2,7 +2,7 @@
 # Values written as ${VAR} are read from the environment (or a .env file).
 
 start_date: "2021-01-01"        # first event date to collect
-end_date: "2025-12-31"          # last event date to collect
+end_date: "2026-08-31"          # last event date to collect (each report needs 20 trading days of prices after it)
 analysis_start: "2023-07-01"     # score and analyze documents from this date on
                                 # (~520 for 50 stocks; set to start_date to use everything)
 universe_file: config/universe.csv

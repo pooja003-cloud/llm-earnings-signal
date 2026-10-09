@@ -65,3 +65,24 @@ def test_analysis_window_filters_events(tmp_path):
     assert load_events(cfg)["event_id"].tolist() == ["b", "c"]
     cfg["analysis_start"] = None
     assert load_events(cfg)["event_id"].tolist() == ["a", "b", "c"]
+
+
+def test_old_and_new_company_numbers_are_both_collected(tmp_path, monkeypatch):
+    cfg = _setup(tmp_path, monkeypatch)
+    cfg["end_date"] = "2026-08-31"
+
+    def filings(client, cik):
+        if cik == 999:  # new parent: the first earnings release after the reorganization
+            return pd.DataFrame({"form": ["8-K", "8-K"], "items": ["1.01,2.01", "2.02,7.01"],
+                                 "filingDate": ["2026-07-01", "2026-08-01"],
+                                 "accessionNumber": ["0000999-26-000001", "0000999-26-000010"],
+                                 "acceptanceDateTime": ["2026-07-01T08:00:00.000Z", "2026-08-01T06:30:00.000Z"]})
+        return _filings(client, cik)
+
+    monkeypatch.setattr(collect, "_filings_frame", filings)
+    fake = FakeSec()
+    monkeypatch.setattr(collect, "SecClient", lambda *a, **k: fake)
+    uni = pd.DataFrame({"ticker": ["XOM"], "name": ["Exxon Mobil"], "cik": [34088]})
+    ev = collect.collect_sec(cfg, uni)
+    assert sorted(ev["event_id"]) == ["XOM_0000034088-24-000066", "XOM_0000999-26-000010"]
+    assert any("/data/999/" in u for u in fake.urls) and any("/data/34088/" in u for u in fake.urls)

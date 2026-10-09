@@ -138,11 +138,16 @@ def collect_sec(cfg: dict, universe: pd.DataFrame, tickers: list[str] | None = N
     done = set(existing["event_id"]) if len(existing) else set()
     rows = []
     for ticker in tickers or universe["ticker"].tolist():
-        cik = pinned.get(ticker) or cik_map.get(ticker.replace(".", "-")) or cik_map.get(ticker)
-        if cik is None:
+        mapped = cik_map.get(ticker.replace(".", "-")) or cik_map.get(ticker)
+        # a pinned (older) company number plus the one the ticker points to now: after a
+        # reorganization, earlier reports sit under the old number and new ones under the new
+        ciks = list(dict.fromkeys(c for c in (pinned.get(ticker), mapped) if c))
+        if not ciks:
             log.warning("No CIK for %s, skipping", ticker)
             continue
-        f = _filings_frame(client, cik)
+        cik = ciks[0]
+        frames = [_filings_frame(client, c).assign(_cik=c) for c in ciks]
+        f = pd.concat(frames, ignore_index=True).drop_duplicates("accessionNumber")
         f = f[(f["form"] == "8-K") & f["items"].fillna("").str.contains(r"\b2\.02\b")]
         f = f[(pd.to_datetime(f["filingDate"]) >= start) & (pd.to_datetime(f["filingDate"]) <= end)]
         log.info("%s: %d earnings 8-Ks", ticker, len(f))
@@ -154,7 +159,7 @@ def collect_sec(cfg: dict, universe: pd.DataFrame, tickers: list[str] | None = N
             event_id = f"{ticker}_{acc}"
             if event_id in done:
                 continue
-            base = SEC_ARCHIVE.format(cik=cik, acc_nodash=acc.replace("-", ""))
+            base = SEC_ARCHIVE.format(cik=int(fil["_cik"]), acc_nodash=acc.replace("-", ""))
             try:
                 index_html = client.get(base + f"{acc}-index.htm").text
                 href = find_press_release(index_html)

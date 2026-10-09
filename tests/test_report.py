@@ -91,3 +91,24 @@ def test_notes_and_second_comparison_section(tmp_path, monkeypatch):
     assert report.noise_note(s, ["lm"], 20) == ""
     other = {"paths": Paths(tmp_path / "data", tmp_path / "results" / "llama8b")}
     assert report._cmp_markers(other)[0] == "<!-- CLEAN_TEST_LLAMA8B:START -->"
+
+
+def test_period_table_three_periods(tmp_path):
+    import numpy as np
+
+    rng = np.random.default_rng(0)
+    t0 = pd.to_datetime(["2023-09-01"] * 30 + ["2025-01-15"] * 30 + ["2026-08-05"] * 30)
+    a = pd.DataFrame({"event_id": [f"e{i}" for i in range(90)], "t0": t0, "llm": rng.normal(size=90),
+                      "lm": rng.normal(size=90), "car_1_20": rng.normal(size=90), "season": "s"})
+    ra, rb = tmp_path / "a", tmp_path / "b"
+    ra.mkdir(); rb.mkdir()
+    a.to_csv(ra / "events_scored.csv", index=False)
+    a[["event_id", "llm"]].to_csv(rb / "events_scored.csv", index=False)
+    main = {"paths": Paths(tmp_path / "d", ra)}
+    other = {"paths": Paths(tmp_path / "d", rb)}
+    t = report._period_table(main, other, ("2026-06-30", "2023-12-31"), ("Claude", "Llama"), 20)
+    lines = t.splitlines()[2:]
+    assert len(lines) == 3
+    assert "Up to the end of December 2023" in lines[0] and "| 30 |" in lines[0]
+    assert "January 2024 to June 2026 (new to Llama only)" in lines[1]
+    assert "After June 2026 (new to both models)" in lines[2] and "| 30 |" in lines[2]
