@@ -34,8 +34,12 @@ Llama 3.2, a smaller model whose training data ends in December 2023. On the
 predicted returns: Claude +0.04, Llama +0.02, the word list −0.05, none of them
 statistically significant. Almost all of Claude's overall result comes from
 the 108 reports of late 2023 (+0.23). Memory, a period when tone mattered more,
-or chance could each explain that; this sample cannot tell them apart. See the
-[clean test](#clean-test-an-older-model-that-cannot-have-seen-what-happened).
+or chance could each explain that; this sample cannot tell them apart. The two
+models also read the reports quite differently (their scores correlate only
+0.39), so Llama's weak result may partly reflect weaker reading rather than
+missing memory. See the
+[clean test](#clean-test-an-older-model-that-cannot-have-seen-what-happened)
+and the [next steps](#next-steps).
 
 ![Growth of $1 in the long/short portfolios](results/figures/cumulative_long_short.png)
 
@@ -106,7 +110,7 @@ The `llm` score (future-guidance tone, with the other topics as a tie-breaker), 
 
 Everything below was examined after seeing the data. With this many variations, some will look good by luck, so none of it should be read as a finding on its own.
 
-**The 20-day portfolio.** Holding each report for 20 trading days looks much better than the main portfolio, but it is fragile: on a typical day it holds only a few stocks on each side, and on some days only one side, so its Sharpe ratio has a wide margin of error (shown below).
+**The 20-day portfolio is very thin.** Holding each report for 20 trading days looks much better than the main portfolio, but on a typical day it holds only 2 stocks long and 3 short, and on 23% of days only one side (the other side is then the market fund). A single stock can swing the result, which is why the delay table below jumps around and why its Sharpe ratio of 1.41 has a margin of error of about ±0.92.
 
 **Why the two portfolios differ.** The link between tone and returns shows up in the first few days after a report. Starting the same trades later shows how fast it fades; the seasonal portfolio typically trades 36 calendar days after a report, after the effect has mostly gone. These five numbers are themselves noisy, so read the pattern, not each value.
 
@@ -136,13 +140,15 @@ Everything below was examined after seeing the data. With this many variations, 
 | Maximum drawdown | -14.3% | -46.6% |
 | Stocks held on a typical day, long / short | 2 / 3 | 2 / 2 |
 | Days with only one side held (other side hedged with the market fund) | 23% | 20% |
-| Alpha against the factors, yearly (t-statistic) | 23.0% (1.90) | -30.4% (-2.32) |
+| 20-day portfolio: alpha against the Fama-French five factors plus momentum, yearly (t-statistic) | 23.0% (1.90) | -30.4% (-2.32) |
 | **Fama-French five factors plus momentum, seasonal portfolio:** alpha, yearly return not explained by the factors (t-statistic) | 1.5% (0.22) | -7.6% (-1.20) |
 | Market beta (sensitivity to the overall stock market) | -0.09 | +0.22 |
 | Size / value / profitability / investment betas | -0.18 / -0.25 / -0.19 / +0.02 | +0.08 / -0.23 / -0.06 / -0.01 |
 | Momentum beta (tendency to hold recent winners) | +0.20 | +0.20 |
 | R-squared (share of the ups and downs explained by the factors) | 0.23 | 0.28 |
 | Information coefficient using only reports after the model's training cutoff (number of reports) | none: every report is older than the cutoff | none: every report is older than the cutoff |
+
+_A note on noise: this page reports dozens of statistics, so one or two with a t-statistic above 2 are expected by chance alone. Treat the finance word list 20-day portfolio alpha (t = -2.32) as likely noise, not a finding; it was not part of the main test._
 
 ![Return after the report, by tone group](results/figures/car_by_quintile.png)
 
@@ -203,11 +209,30 @@ The main results use Claude (claude-haiku-5-5), which learned from text written 
 | Up to the end of December 2023 (second model may have read about these) | 108 | +0.229 (p 0.02) | +0.085 (p 0.38) | +0.036 (p 0.71) |
 | After December 2023 (second model cannot have read about these) | 417 | +0.045 (p 0.36) | +0.023 (p 0.64) | -0.046 (p 0.34) |
 
-_How often the two models agree, on the same 525 reports: identical guidance score 26% of the time, within one step 73%; rank correlation of their scores 0.39._
+**Do the two models read the reports alike?** On the same 525 reports they gave the identical guidance score 26% of the time and were within one step 73% of the time; the rank correlation of their scores is 0.39. That is well below the 0.7 or so that would show the two models read the reports alike, so the second model may simply be reading worse, and this test **cannot tell memory apart from weaker reading**. A larger model with an equally early cutoff would settle it.
 
 Full tables and charts for the second model: [`results/llama/`](results/llama/).
 
 <!-- CLEAN_TEST:END -->
+
+### Reading the clean test
+
+* **Most of Claude's edge comes from a small early sample.** Claude's rank
+  correlation was +0.23 on the 108 reports up to December 2023 but only +0.05 on
+  the 417 after, even though Claude's training data covers both periods. Three
+  explanations fit: **noise** (108 reports over about two earnings seasons is a
+  small sample), **a change in market conditions** (tone may have mattered more
+  in late 2023), or **better memory of older events** (more has been written
+  about them, so a model may recall them more easily). This study cannot tell
+  these apart.
+* **The test cannot separate memory from reading quality.** Llama 3.2 3B is a
+  small model, and its scores agree only loosely with Claude's (rank correlation
+  0.39). If the two agreed closely and Llama still found nothing, memory would
+  be the likelier explanation for Claude's result. As it is, Llama may simply be
+  reading worse. Running the same test with the larger Llama 3.1 8B (same
+  December 2023 cutoff) would weaken that objection.
+* **What can be said with confidence:** on the reports published after December
+  2023, none of the three scores predicted the following month's returns.
 
 ---
 
@@ -344,7 +369,7 @@ settings.
 git clone https://github.com/pooja003-cloud/llm-earnings-signal && cd llm-earnings-signal
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
-pytest -q                      # 58 automated tests, about 3 seconds
+pytest -q                      # 60 automated tests, about 3 seconds
 
 earnsig demo --readme          # practice run on made-up data, no internet needed, about 20 seconds
 ```
@@ -412,6 +437,22 @@ results/           all result tables, daily returns, holdings, scored reports an
 ```
 
 ---
+
+## Next steps
+
+* **A larger clean-test model.** Score the same reports with Llama 3.1 8B, which
+  has the same December 2023 training cutoff but reads better. The settings are
+  ready in [`config/llama8b.yaml`](config/llama8b.yaml); in the Colab notebook,
+  set `CONFIG = "config/llama8b.yaml"` and run it (about an hour on the free
+  graphics card), then run `earnsig --config config/llama8b.yaml backtest` and
+  `earnsig --config config/llama8b.yaml compare`, which adds its own section.
+* **All 1,041 reports since 2021.** They are already downloaded. Scoring the 516
+  reports from before July 2023 with Claude (set `analysis_start: "2021-01-01"`
+  in `config/config.yaml`) would roughly double the number of earnings seasons
+  in the main test. It adds nothing to the clean test, because all of those
+  reports are older than every model's training cutoff.
+* **Historical index membership** instead of today's large companies, to remove
+  survivorship bias.
 
 ## Biases and limitations
 

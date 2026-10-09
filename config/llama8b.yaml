@@ -1,0 +1,15 @@
+# Optional larger clean test: Llama 3.1 (8 billion parameters), same December 2023
+# training cutoff as Llama 3.2. Needs a graphics card (the free Colab T4 is enough)
+# or a computer with 16 GB of memory. Run it with the Colab notebook by setting
+# CONFIG = "config/llama8b.yaml" in its first code cell, then on your computer:
+#
+#   earnsig --config config/llama8b.yaml backtest
+#   earnsig --config config/llama8b.yaml compare     # adds its own section to the README
+base: llama.yaml
+
+results_dir: results/llama8b
+
+llm:
+  ollama_model: llama3.1:8b
+  model_version: llama3.1:8b        # the exact digest is recorded with every saved answer
+  scores_file: scores_llama8b.csv

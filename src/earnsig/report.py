@@ -51,7 +51,7 @@ def stats_table(s: pd.DataFrame, cols: list[str], H: int) -> str:
             f"{_num(g(c, 'event_median_names_long'), 0)} / {_num(g(c, 'event_median_names_short'), 0)}")),
         ("Days with only one side held (other side hedged with the market fund)",
          lambda c: _pct(g(c, "event_share_one_leg"), 0)),
-        ("Alpha against the factors, yearly (t-statistic)",
+        (f"{H}-day portfolio: alpha against the Fama-French five factors plus momentum, yearly (t-statistic)",
          lambda c: f"{_pct(g(c, 'ffe_alpha_ann'))} ({_num(g(c, 'ffe_alpha_t'))})"),
         ("**Fama-French five factors plus momentum, seasonal portfolio:** alpha, yearly return not explained "
          "by the factors (t-statistic)", lambda c: f"{_pct(g(c, 'ff_alpha_ann'))} ({_num(g(c, 'ff_alpha_t'))})"),
@@ -100,6 +100,34 @@ def main_test_verdict(s: pd.DataFrame, prim: str) -> str:
     return (f"**Verdict on the main test:** the language model's score was positively linked to later returns "
             f"(information coefficient {ic:+.3f}), but the link is {sig}, {port}. "
             "Treat the result as suggestive, not proven.")
+
+
+def thin_portfolio_note(s: pd.DataFrame, prim: str, H: int) -> str:
+    r = s.loc[prim]
+    nl, ns, one, se = (r.get("event_median_names_long"), r.get("event_median_names_short"),
+                       r.get("event_share_one_leg"), r.get("event_net_sharpe_se"))
+    if pd.isna(nl):
+        return ""
+    return (f"**The {H}-day portfolio is very thin.** Holding each report for {H} trading days looks much better "
+            f"than the main portfolio, but on a typical day it holds only {nl:.0f} stocks long and {ns:.0f} short, "
+            f"and on {one:.0%} of days only one side (the other side is then the market fund). A single stock can "
+            "swing the result, which is why the delay table below jumps around and why its Sharpe ratio of "
+            f"{r.get('event_net_sharpe', np.nan):.2f} has a margin of error of about ±{se:.2f}.")
+
+
+def noise_note(s: pd.DataFrame, cols: list[str], H: int) -> str:
+    """Flag 'significant-looking' alphas: with this many numbers, some |t| > 2 are expected by chance."""
+    hits = []
+    for c in cols:
+        for key, what in (("ff_alpha_t", "seasonal portfolio alpha"), ("ffe_alpha_t", f"{H}-day portfolio alpha")):
+            t = s.loc[c].get(key, np.nan)
+            if not pd.isna(t) and abs(t) > 2:
+                hits.append(f"{LABELS.get(c, c).lower()} {what} (t = {t:.2f})")
+    if not hits:
+        return ""
+    return ("_A note on noise: this page reports dozens of statistics, so one or two with a t-statistic above 2 are "
+            "expected by chance alone. Treat the " + "; ".join(hits) +
+            " as likely noise, not a finding; it was not part of the main test._")
 
 
 def entry_delay_table(path) -> str:
@@ -182,16 +210,14 @@ def build_section(cfg: dict, include_chart: bool = True) -> str:
               "### Exploratory results", "",
               "Everything below was examined after seeing the data. With this many variations, some will look "
               "good by luck, so none of it should be read as a finding on its own.", "",
-              f"**The {H}-day portfolio.** Holding each report for {H} trading days looks much better than the "
-              "main portfolio, but it is fragile: on a typical day it holds only a few stocks on each side, and on "
-              "some days only one side, so its Sharpe ratio has a wide margin of error (shown below).", "",
+              thin_portfolio_note(s, prim, H), "",
               "**Why the two portfolios differ.** The link between tone and returns shows up in the first few "
               "days after a report. Starting the same trades later shows how fast it fades"
               + (f"; the seasonal portfolio typically trades {lag:.0f} calendar days after a report, after the "
                  "effect has mostly gone." if lag else ".")
               + " These five numbers are themselves noisy, so read the pattern, not each value.", "",
               entry_delay_table(rd / "entry_delay.csv"), "",
-              "#### All measures", "", stats_table(s, cols, H), ""]
+              "#### All measures", "", stats_table(s, cols, H), "", noise_note(s, cols, H), ""]
     if not meta.get("has_factors"):
         parts += ["_Factor rows are empty: run `earnsig factors` to download the Fama-French factor data._", ""]
     parts += [f"![Return after the report, by tone group]({rel}/figures/car_by_quintile.png)", "",
@@ -318,18 +344,34 @@ def build_comparison(main_cfg: dict, other_cfg: dict) -> str:
              _period_table(main_cfg, other_cfg, mb["training_cutoff"], (name_a, name_b), H), ""]
     agree = _model_agreement(main_cfg, other_cfg)
     if agree:
-        parts += [f"_How often the two models agree, on the same {agree['n']} reports: identical guidance score "
-                  f"{_pct(agree['same_guidance'], 0)} of the time, within one step {_pct(agree['within_one'], 0)}; "
-                  f"rank correlation of their scores {_num(agree['rank_corr'])}._", ""]
+        verdict = (f"Their scores agree closely, so the second model reads the reports much like {name_a}; its "
+                   "weak result on unseen reports then points to memory." if agree["rank_corr"] >= 0.7 else
+                   f"That is well below the 0.7 or so that would show the two models read the reports alike, so the "
+                   f"second model may simply be reading worse, and this test **cannot tell memory apart from weaker "
+                   f"reading**. A larger model with an equally early cutoff would settle it.")
+        parts += [f"**Do the two models read the reports alike?** On the same {agree['n']} reports they gave the "
+                  f"identical guidance score {_pct(agree['same_guidance'], 0)} of the time and were within one step "
+                  f"{_pct(agree['within_one'], 0)} of the time; the rank correlation of their scores is "
+                  f"{_num(agree['rank_corr'])}. {verdict}", ""]
     parts += [f"Full tables and charts for the second model: [`{other_cfg['paths'].results.relative_to(ROOT).as_posix()}/`]"
               f"({other_cfg['paths'].results.relative_to(ROOT).as_posix()}/).", "", CMP_END]
     return "\n".join(parts)
 
 
+def _cmp_markers(other_cfg: dict) -> tuple[str, str]:
+    name = other_cfg["paths"].results.name
+    if name == "llama":
+        return CMP_START, CMP_END
+    tag = re.sub(r"[^A-Za-z0-9]+", "_", name).upper()
+    return f"<!-- CLEAN_TEST_{tag}:START -->", f"<!-- CLEAN_TEST_{tag}:END -->"
+
+
 def update_readme_comparison(main_cfg: dict, other_cfg: dict, readme=None) -> None:
     readme = readme or ROOT / "README.md"
     text = readme.read_text()
+    CMP_START, CMP_END = _cmp_markers(other_cfg)
     section = build_comparison(main_cfg, other_cfg)
+    section = section.replace(globals()["CMP_START"], CMP_START).replace(globals()["CMP_END"], CMP_END)
     if CMP_START in text and CMP_END in text:
         text = re.sub(re.escape(CMP_START) + r".*?" + re.escape(CMP_END), lambda m: section, text, flags=re.S)
     elif "## How the study works" in text:
