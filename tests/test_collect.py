@@ -52,3 +52,16 @@ def test_without_pin_finds_nothing_and_warns(tmp_path, monkeypatch, caplog):
     ev = collect.collect_sec(cfg, uni)
     assert len(ev) == 0
     assert "add its old CIK" in caplog.text
+
+
+def test_analysis_window_filters_events(tmp_path):
+    from earnsig.config import load_events
+
+    paths = Paths(tmp_path, tmp_path / "res").ensure()
+    pd.DataFrame({"event_id": ["a", "b", "c", "d"], "ticker": "X",
+                  "published_at": ["2022-05-01 07:00", "2023-07-01 07:00", "2025-12-31 16:30", "2026-01-02 07:00"],
+                  "path": "p"}).to_csv(paths.events, index=False)
+    cfg = {"paths": paths, "start_date": "2021-01-01", "end_date": "2025-12-31", "analysis_start": "2023-07-01"}
+    assert load_events(cfg)["event_id"].tolist() == ["b", "c"]
+    cfg["analysis_start"] = None
+    assert load_events(cfg)["event_id"].tolist() == ["a", "b", "c"]

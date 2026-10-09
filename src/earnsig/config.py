@@ -94,3 +94,15 @@ def _abs(p: str) -> Path:
 
 def load_universe(cfg: dict) -> pd.DataFrame:
     return pd.read_csv(_abs(cfg["universe_file"]))
+
+
+def load_events(cfg: dict) -> pd.DataFrame:
+    """Collected documents inside the analysis window (``analysis_start`` .. ``end_date``).
+
+    Collection can cover a longer period; scoring, the baseline and the backtest
+    all use only this window, so every signal is compared on the same documents.
+    """
+    ev = pd.read_csv(cfg["paths"].events, parse_dates=["published_at"])
+    start = pd.Timestamp(cfg.get("analysis_start") or cfg["start_date"])
+    end = pd.Timestamp(cfg["end_date"]) + pd.Timedelta(days=1)
+    return ev[(ev["published_at"] >= start) & (ev["published_at"] < end)].reset_index(drop=True)

@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 from . import metrics as M
-from .config import load_universe
+from .config import load_events, load_universe
 from .events import event_study, returns_from_prices
 from .llm_score import scorer_label
 from .market_data import load_factors, load_prices
@@ -19,7 +19,7 @@ log = logging.getLogger(__name__)
 
 def load_panel(cfg: dict) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     p = cfg["paths"]
-    events = pd.read_csv(p.events, parse_dates=["published_at"])
+    events = load_events(cfg)
     universe = load_universe(cfg)
     prices = load_prices(cfg)
     ev, paths = event_study(events, prices, universe, cfg)

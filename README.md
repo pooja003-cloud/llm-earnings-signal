@@ -6,7 +6,7 @@ the stock's abnormal return over the next 20 trading days**, and does it beat a
 classic finance dictionary (Loughran-McDonald)?
 
 The pipeline pulls 8-K earnings press releases from SEC EDGAR for 50 large US
-stocks (2021-2025), has an LLM score each one on a fixed -2..+2 rubric with
+stocks (July 2023 to December 2025, about 520 releases), has an LLM score each one on a fixed -2..+2 rubric with
 JSON-schema output, measures post-announcement abnormal returns, and trades a
 quintile long/short portfolio rebalanced after each earnings season.
 
@@ -264,10 +264,11 @@ the model's training cutoff, reported separately as **post-cutoff IC**. With a
 recent model that window may be short and the sample small. Treat pre-cutoff
 results as an upper bound, not evidence.
 
-**Small sample, noisy statistics.** 50 stocks × ~20 quarters is ~1,000
-documents and only ~20 seasonal rebalances. A Sharpe ratio estimated from five
-years has a standard error near 0.45, and season-level IC t-stats rest on ~20
-observations. On the synthetic demo, regenerating the same planted effect with
+**Small sample, noisy statistics.** 50 stocks × ~10 quarters is ~520
+documents and only ~10 seasonal rebalances. A Sharpe ratio estimated from 2.5
+years has a standard error near 0.6, and season-level IC t-stats rest on ~10
+observations. (All 1,000+ releases since 2021 are collected; set
+`analysis_start` to `start_date` to use them.) On the synthetic demo, regenerating the same planted effect with
 different random seeds moved the LLM IC between about 0.03 and 0.11. Look at the
 confidence intervals, not the point estimates.
 

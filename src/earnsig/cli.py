@@ -8,13 +8,13 @@ import sys
 
 import pandas as pd
 
-from .config import load_config, load_universe
+from .config import load_config, load_events, load_universe
 
 log = logging.getLogger("earnsig")
 
 
 def _events(cfg, limit=None):
-    ev = pd.read_csv(cfg["paths"].events, parse_dates=["published_at"])
+    ev = load_events(cfg)
     return ev.head(limit) if limit else ev
 
 
@@ -97,6 +97,7 @@ def cmd_demo(cfg, a):
 
     cfg = load_config(a.config, data_dir="data/demo", results_dir="results/demo")
     cfg["universe_file"] = str(cfg["paths"].data / "universe.csv")
+    cfg["analysis_start"] = None  # the demo always uses its full synthetic period
     cfg["llm"].update(provider="mock", model="mock (synthetic demo)", training_cutoff="2024-01-01")
     log.info("Generating synthetic data in %s", cfg["paths"].data)
     if cfg["paths"].llm_cache.exists():
