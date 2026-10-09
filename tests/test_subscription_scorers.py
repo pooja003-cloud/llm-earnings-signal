@@ -66,8 +66,13 @@ def test_missing_cli_gives_install_hint(tmp_path, monkeypatch):
         ClaudeCodeScorer("haiku", tmp_path / "p.txt")
 
 
+def _ollama_tags(models):
+    return lambda url, timeout=None: SimpleNamespace(json=lambda: {"models": [{"name": m} for m in models]})
+
+
 def test_ollama_request_and_parse(monkeypatch):
     rec = {}
+    monkeypatch.setattr("requests.get", _ollama_tags(["llama3.1:8b"]))
 
     def post(url, json=None, timeout=None):
         rec.update(url=url, body=json)
@@ -143,3 +148,16 @@ def test_half_written_cache_line_is_ignored(tmp_path):
     p = tmp_path / "cache.jsonl"
     p.write_text(json.dumps({"key": "k1", "x": 1}) + "\n" + '{"key": "k2", "x"')
     assert list(llm_score.read_cache(p)) == ["k1"]
+
+
+def test_ollama_not_running_or_model_missing(monkeypatch):
+    def down(url, timeout=None):
+        raise ConnectionError("refused")
+    monkeypatch.setattr("requests.get", down)
+    with pytest.raises(RuntimeError, match="Ollama is not running"):
+        OllamaScorer("llama3.2:3b")
+    monkeypatch.setattr("requests.get", _ollama_tags(["llama3.1:8b"]))
+    with pytest.raises(RuntimeError, match="ollama pull llama3.2:3b"):
+        OllamaScorer("llama3.2:3b")
+    monkeypatch.setattr("requests.get", _ollama_tags(["llama3.2:3b"]))
+    assert OllamaScorer("llama3.2:3b").model == "ollama:llama3.2:3b"

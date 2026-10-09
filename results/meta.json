@@ -10,5 +10,7 @@
   "cost_bps": 10,
   "borrow_bps": 50,
   "training_cutoff": "2026-06-30",
-  "has_factors": true
+  "has_factors": true,
+  "model_version": "claude-haiku-5-5",
+  "seasonal_median_days_to_trade": 36.0
 }

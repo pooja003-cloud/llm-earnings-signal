@@ -35,6 +35,7 @@ def _expand(obj):
 class Paths:
     data: Path
     results: Path
+    scores_name: str = "scores_llm.csv"
 
     @property
     def docs(self) -> Path:
@@ -58,7 +59,7 @@ class Paths:
 
     @property
     def llm_scores(self) -> Path:
-        return self.data / "scores_llm.csv"
+        return self.data / self.scores_name
 
     @property
     def lm_scores(self) -> Path:
@@ -77,14 +78,33 @@ class Paths:
 def load_config(path: str | Path | None = None, data_dir: str | None = None,
                 results_dir: str | None = None) -> dict:
     path = Path(path) if path else ROOT / "config" / "config.yaml"
-    with open(path) as f:
-        cfg = _expand(yaml.safe_load(f))
+    cfg = _expand(_read_with_base(path))
     if data_dir:
         cfg["data_dir"] = data_dir
     if results_dir:
         cfg["results_dir"] = results_dir
-    cfg["paths"] = Paths(_abs(cfg["data_dir"]), _abs(cfg["results_dir"])).ensure()
+    cfg["paths"] = Paths(_abs(cfg["data_dir"]), _abs(cfg["results_dir"]),
+                         cfg["llm"].get("scores_file", "scores_llm.csv")).ensure()
+    cfg["config_path"] = str(path)
     return cfg
+
+
+def _read_with_base(path: Path) -> dict:
+    """Read a YAML config. A ``base:`` key names another config file (relative to this one)
+    whose settings are loaded first; this file's settings then override them."""
+    with open(path) as f:
+        cfg = yaml.safe_load(f) or {}
+    base = cfg.pop("base", None)
+    if base:
+        return _merge(_read_with_base((Path(path).parent / base).resolve()), cfg)
+    return cfg
+
+
+def _merge(base: dict, over: dict) -> dict:
+    out = dict(base)
+    for k, v in over.items():
+        out[k] = _merge(out[k], v) if isinstance(v, dict) and isinstance(out.get(k), dict) else v
+    return out
 
 
 def _abs(p: str) -> Path:

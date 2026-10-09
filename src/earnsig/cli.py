@@ -92,6 +92,17 @@ def cmd_report(cfg, a):
     log.info("README.md results section updated")
 
 
+def cmd_compare(cfg, a):
+    from .report import update_readme_comparison
+
+    main = load_config(a.main)
+    if main["paths"].results == cfg["paths"].results:
+        sys.exit("Run compare with the second model's config, e.g. "
+                 "`earnsig --config config/llama.yaml compare`.")
+    update_readme_comparison(main, cfg)
+    log.info("README.md comparison section updated")
+
+
 def cmd_demo(cfg, a):
     from .synthetic import generate
 
@@ -134,6 +145,8 @@ def main(argv=None):
     sub.add_parser("baseline", help="Loughran-McDonald dictionary scores")
     sub.add_parser("backtest", help="event study, portfolios, statistics, figures")
     sub.add_parser("report", help="write results into README.md")
+    k2 = sub.add_parser("compare", help="add a README section comparing this config's model with the main one")
+    k2.add_argument("--main", default=None, help="config of the main results (default config/config.yaml)")
     d = sub.add_parser("demo", help="run everything offline on synthetic data")
     d.add_argument("--readme", action="store_true", help="also write the demo results into README.md")
     sub.add_parser("all", help="run every real step in order")

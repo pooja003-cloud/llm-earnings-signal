@@ -20,6 +20,8 @@ llm:
   #   anthropic    Claude API with ANTHROPIC_API_KEY (pay as you go).
   provider: claude_code
   claude_code_model: haiku          # alias: haiku | sonnet | opus. Haiku uses the least of your limits
+  model_version: claude-haiku-5-5   # exact model the alias ran (checked with `claude -p --output-format json`);
+                                    # new runs record it automatically in data/llm_cache.jsonl
   ollama_model: llama3.1:8b         # any model you have pulled with `ollama pull`
   ollama_url: http://localhost:11434
   ollama_num_ctx: 16384             # context window in tokens; long releases need >= 16k
@@ -33,7 +35,7 @@ llm:
   # the subsequent stock moves during training. Set it to the published training
   # cutoff of the model you use. Results are reported separately after this date.
   #   Claude Haiku 5.5 (the `haiku` alias in Claude Code): June 2026
-  #   Llama 3.1 (ollama llama3.1:8b): December 2023
+  #   Llama 3.1 and 3.2 (ollama llama3.1:8b, llama3.2:3b): December 2023
   training_cutoff: "2026-06-30"
   consistency_sample: 40            # documents scored twice to test reliability
 

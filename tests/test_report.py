@@ -36,3 +36,46 @@ def test_note_when_some_documents_are_after_cutoff(tmp_path, monkeypatch):
 def test_demo_gets_neither(tmp_path, monkeypatch):
     text = report.build_section(_cfg(tmp_path, monkeypatch, post_n=0, provider="mock"))
     assert "[!CAUTION]" not in text and "synthetic demo" in text
+
+
+def test_config_base_inheritance(tmp_path):
+    from earnsig.config import load_config
+
+    (tmp_path / "main.yaml").write_text(
+        "start_date: '2021-01-01'\nend_date: '2025-12-31'\ndata_dir: d\nresults_dir: r\n"
+        "llm: {provider: claude_code, workers: 2, training_cutoff: '2026-06-30'}\n")
+    (tmp_path / "second.yaml").write_text(
+        "base: main.yaml\nresults_dir: r2\nllm: {provider: ollama, scores_file: s2.csv}\n")
+    cfg = load_config(tmp_path / "second.yaml", data_dir=str(tmp_path / "d"))
+    assert cfg["llm"] == {"provider": "ollama", "workers": 2, "training_cutoff": "2026-06-30", "scores_file": "s2.csv"}
+    assert cfg["results_dir"] == "r2" and cfg["paths"].llm_scores.name == "s2.csv"
+
+
+def test_comparison_section(tmp_path, monkeypatch):
+    main = _cfg(tmp_path, monkeypatch, post_n=0)
+    other_res = tmp_path / "results" / "llama"
+    other = {"paths": Paths(tmp_path / "data", other_res, "scores_llama.csv").ensure(), "signals": main["signals"]}
+    row = dict(zip(COLS, [525, 0.05, 1.2, 0.6, 10, 0.53, 0.002, -0.003, 420, 0.06]))
+    pd.DataFrame([{**row, "signal": "llm"}, {**row, "signal": "lm"}]).set_index("signal").to_csv(other_res / "summary.csv")
+    meta = json.loads((tmp_path / "results" / "meta.json").read_text())
+    (other_res / "meta.json").write_text(json.dumps({**meta, "model": "Ollama llama3.2:3b", "training_cutoff": "2023-12-31"}))
+    readme = tmp_path / "README.md"
+    readme.write_text("# T\n\n## How the study works\n\ntext\n")
+    report.update_readme_comparison(main, other, readme)
+    text = readme.read_text()
+    assert text.index("CLEAN_TEST:START") < text.index("## How the study works")
+    assert "Ollama llama3.2:3b" in text and "**+0.060 (420 reports)**" in text and "**none: it may have read about every report**" in text
+    report.update_readme_comparison(main, other, readme)  # running twice replaces, not duplicates
+    assert readme.read_text().count("CLEAN_TEST:START") == 1
+
+
+def test_main_test_verdict_and_delay_table(tmp_path):
+    s = pd.DataFrame({"mean_ic": [0.082], "ic_p": [0.079], "seasonal_net_sharpe": [0.21]}, index=["llm"])
+    v = report.main_test_verdict(s, "llm")
+    assert "**not** statistically significant" in v and "p = 0.08" in v and "suggestive" in v
+    s.loc["llm", "ic_p"] = 0.01
+    assert "statistically significant at the usual 5% level," in report.main_test_verdict(s, "llm")
+    p = tmp_path / "entry_delay.csv"
+    pd.DataFrame({"delay_days": [0, 5], "sharpe_net": [1.41, 0.45]}).to_csv(p, index=False)
+    t = report.entry_delay_table(p)
+    assert "| 0 | 5 |" in t and "| 1.41 | 0.45 |" in t

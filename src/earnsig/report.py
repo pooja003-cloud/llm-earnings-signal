@@ -27,8 +27,8 @@ def stats_table(s: pd.DataFrame, cols: list[str], H: int) -> str:
         ("Reports with a score", lambda c: f"{int(g(c, 'n_events')):,}"),
         (f"Information coefficient: rank correlation of score with the {H}-day return above the market",
          lambda c: _num(g(c, "mean_ic"), 3, True)),
-        ("t-statistic of the information coefficient across seasons (about 2 or more = unlikely to be luck)",
-         lambda c: _num(g(c, "ic_t"))),
+        ("t-statistic of the information coefficient across seasons", lambda c: _num(g(c, "ic_t"))),
+        ("p-value", lambda c: _num(g(c, "ic_p"), 2)),
         ("Earnings seasons where the correlation was positive",
          lambda c: f"{_pct(g(c, 'ic_pos_share'), 0)} of {int(g(c, 'seasons'))}"),
         ("Hit rate: top and bottom fifth that moved the predicted way", lambda c: _pct(g(c, "hit_rate"))),
@@ -39,14 +39,22 @@ def stats_table(s: pd.DataFrame, cols: list[str], H: int) -> str:
         ("Yearly volatility (typical size of ups and downs)", lambda c: _pct(g(c, "seasonal_net_ann_vol"))),
         ("Sharpe ratio (return per unit of risk), after costs (before costs)",
          lambda c: f"{_num(g(c, 'seasonal_net_sharpe'))} ({_num(g(c, 'seasonal_gross_sharpe'))})"),
+        ("Standard error of that Sharpe ratio", lambda c: _num(g(c, "seasonal_net_sharpe_se"))),
         ("Maximum drawdown (worst fall from a peak)", lambda c: _pct(g(c, "seasonal_net_max_drawdown"))),
         ("Turnover per rebalance (replacing every holding = 400%)", lambda c: _pct(g(c, "seasonal_turnover"), 0)),
         ("Holding periods that made money", lambda c: _pct(g(c, "seasonal_periods_positive"), 0)),
-        (f"**Long/short portfolio, each report held {H} trading days, after costs:** Sharpe ratio",
-         lambda c: _num(g(c, "event_net_sharpe"))),
+        (f"**Long/short portfolio, each report held {H} trading days, after costs:** Sharpe ratio "
+         "(± one standard error)",
+         lambda c: f"{_num(g(c, 'event_net_sharpe'))} (± {_num(g(c, 'event_net_sharpe_se'))})"),
         ("Maximum drawdown", lambda c: _pct(g(c, "event_net_max_drawdown"))),
-        ("**Fama-French five factors plus momentum:** alpha, yearly return not explained by the factors "
-         "(t-statistic)", lambda c: f"{_pct(g(c, 'ff_alpha_ann'))} ({_num(g(c, 'ff_alpha_t'))})"),
+        ("Stocks held on a typical day, long / short", lambda c: (
+            f"{_num(g(c, 'event_median_names_long'), 0)} / {_num(g(c, 'event_median_names_short'), 0)}")),
+        ("Days with only one side held (other side hedged with the market fund)",
+         lambda c: _pct(g(c, "event_share_one_leg"), 0)),
+        ("Alpha against the factors, yearly (t-statistic)",
+         lambda c: f"{_pct(g(c, 'ffe_alpha_ann'))} ({_num(g(c, 'ffe_alpha_t'))})"),
+        ("**Fama-French five factors plus momentum, seasonal portfolio:** alpha, yearly return not explained "
+         "by the factors (t-statistic)", lambda c: f"{_pct(g(c, 'ff_alpha_ann'))} ({_num(g(c, 'ff_alpha_t'))})"),
         ("Market beta (sensitivity to the overall stock market)", lambda c: _num(g(c, "ff_beta_Mkt-RF"), 2, True)),
         ("Size / value / profitability / investment betas",
          lambda c: " / ".join(_num(g(c, f"ff_beta_{f}"), 2, True) for f in ("SMB", "HML", "RMW", "CMA"))),
@@ -59,6 +67,49 @@ def stats_table(s: pd.DataFrame, cols: list[str], H: int) -> str:
     head = "| Measure | " + " | ".join(LABELS.get(c, c) for c in cols) + " |\n|---|" + "---:|" * len(cols)
     body = "\n".join(f"| {name} | " + " | ".join(fn(c) for c in cols) + " |" for name, fn in rows)
     return head + "\n" + body
+
+
+def main_test_table(s: pd.DataFrame, cols: list[str], H: int) -> str:
+    g = lambda c, k: s.loc[c].get(k, np.nan)  # noqa: E731
+    crit = g(cols[0], "ic_t_crit")
+    rows = [
+        (f"Information coefficient: rank correlation of the score with the {H}-day return above the market",
+         lambda c: _num(g(c, "mean_ic"), 3, True)),
+        (f"t-statistic across {int(g(cols[0], 'seasons'))} seasons (5% significance needs about {_num(crit)} "
+         f"with this few seasons)", lambda c: _num(g(c, "ic_t"))),
+        ("p-value (chance of a result this strong if there were no real link; below 0.05 is the usual bar)",
+         lambda c: _num(g(c, "ic_p"), 2)),
+        ("Earnings seasons where the correlation was positive",
+         lambda c: f"{_pct(g(c, 'ic_pos_share'), 0)} of {int(g(c, 'seasons'))}"),
+        ("Portfolio rebalanced each season, after costs: Sharpe ratio (± one standard error)",
+         lambda c: f"{_num(g(c, 'seasonal_net_sharpe'))} (± {_num(g(c, 'seasonal_net_sharpe_se'))})"),
+    ]
+    head = "| Main test | " + " | ".join(LABELS.get(c, c) for c in cols) + " |\n|---|" + "---:|" * len(cols)
+    return head + "\n" + "\n".join(f"| {n} | " + " | ".join(fn(c) for c in cols) + " |" for n, fn in rows)
+
+
+def main_test_verdict(s: pd.DataFrame, prim: str) -> str:
+    r = s.loc[prim]
+    p, ic, sharpe = r.get("ic_p", np.nan), r["mean_ic"], r.get("seasonal_net_sharpe", np.nan)
+    if pd.isna(p):
+        return ""
+    sig = ("statistically significant at the usual 5% level" if p < 0.05 else
+           f"**not** statistically significant at the usual 5% level (p = {p:.2f})")
+    port = ("and the pre-chosen seasonal portfolio made little after costs"
+            if pd.isna(sharpe) or sharpe < 0.5 else "and the pre-chosen seasonal portfolio was profitable after costs")
+    return (f"**Verdict on the main test:** the language model's score was positively linked to later returns "
+            f"(information coefficient {ic:+.3f}), but the link is {sig}, {port}. "
+            "Treat the result as suggestive, not proven.")
+
+
+def entry_delay_table(path) -> str:
+    if not path.exists():
+        return ""
+    d = pd.read_csv(path)
+    head = "| Trades start this many trading days later | " + " | ".join(str(int(x)) for x in d["delay_days"]) + " |"
+    sep = "|---|" + "---:|" * len(d)
+    row = "| Sharpe ratio after costs | " + " | ".join(_num(x) for x in d["sharpe_net"]) + " |"
+    return "\n".join([head, sep, row])
 
 
 def topic_table(s: pd.DataFrame, topics: list[str]) -> str:
@@ -86,7 +137,7 @@ def consistency_table(c: dict) -> str:
     return "\n".join(lines)
 
 
-def build_section(cfg: dict) -> str:
+def build_section(cfg: dict, include_chart: bool = True) -> str:
     rd = cfg["paths"].results
     s = pd.read_csv(rd / "summary.csv", index_col=0)
     meta = json.loads((rd / "meta.json").read_text())
@@ -113,23 +164,44 @@ def build_section(cfg: dict) -> str:
         parts += [f"> [!NOTE]\n> {meta['n_events'] - post_n} of {meta['n_events']} reports are older than the language model's "
                   f"training cutoff ({meta['training_cutoff']}); the last row of the table uses only the {post_n} after it.", ""]
     bench = "the S&P 500 index fund (SPY)" if meta["benchmark"] == "market" else "each stock's sector fund"
+    version = f", exact model `{meta['model_version']}`" if meta.get("model_version") else ""
+    lag = meta.get("seasonal_median_days_to_trade")
     parts += [f"_Sample: {meta['n_events']:,} earnings reports from {meta['n_tickers']} companies, "
-              f"{meta['first_event']} to {meta['last_event']}. Scored by: {meta['model']}. "
+              f"{meta['first_event']} to {meta['last_event']}. Scored by: {meta['model']}{version}. "
               f"Returns are measured above {bench}. Trading costs: {meta['cost_bps'] / 100:.2f}% per trade "
               f"plus {meta['borrow_bps'] / 100:.2f}% a year to borrow shares for selling short._", "",
-              f"![Growth of $1 in the long/short portfolios]({rel}/figures/cumulative_long_short.png)", "",
-              "### All measures", "", stats_table(s, cols, H), ""]
+              "### Main test (chosen before the data were analysed)", "",
+              f"The `{prim}` score (future-guidance tone, with the other topics as a tie-breaker), its "
+              f"information coefficient against the {H}-day return above the market, and a long/short portfolio "
+              "rebalanced after each earnings season. These choices were fixed in the settings before any real "
+              "report was scored.", "",
+              main_test_table(s, cols, H), "", main_test_verdict(s, prim), "",
+              *([f"![Growth of $1 in the long/short portfolios]({rel}/figures/cumulative_long_short.png)", ""]
+                if include_chart else []),
+              "### Exploratory results", "",
+              "Everything below was examined after seeing the data. With this many variations, some will look "
+              "good by luck, so none of it should be read as a finding on its own.", "",
+              f"**The {H}-day portfolio.** Holding each report for {H} trading days looks much better than the "
+              "main portfolio, but it is fragile: on a typical day it holds only a few stocks on each side, and on "
+              "some days only one side, so its Sharpe ratio has a wide margin of error (shown below).", "",
+              "**Why the two portfolios differ.** The link between tone and returns shows up in the first few "
+              "days after a report. Starting the same trades later shows how fast it fades"
+              + (f"; the seasonal portfolio typically trades {lag:.0f} calendar days after a report, after the "
+                 "effect has mostly gone." if lag else ".")
+              + " These five numbers are themselves noisy, so read the pattern, not each value.", "",
+              entry_delay_table(rd / "entry_delay.csv"), "",
+              "#### All measures", "", stats_table(s, cols, H), ""]
     if not meta.get("has_factors"):
         parts += ["_Factor rows are empty: run `earnsig factors` to download the Fama-French factor data._", ""]
     parts += [f"![Return after the report, by tone group]({rel}/figures/car_by_quintile.png)", "",
-              "### Which topic matters most?", "",
+              "#### Which topic matters most?", "",
               "Each report also got separate scores for what management said about future guidance, profit "
               "margins and customer demand.", "",
               topic_table(s, [prim, *cfg["signals"].get("topics", []), base]), "",
               f"![Information coefficient by score]({rel}/figures/ic_by_signal.png)", ""]
     cons = rd / "consistency.json"
     if cons.exists():
-        parts += ["### Does the model give the same answer twice?", "",
+        parts += ["#### Does the model give the same answer twice?", "",
                   consistency_table(json.loads(cons.read_text())), ""]
     parts += [END]
     return "\n".join(parts)
@@ -138,9 +210,94 @@ def build_section(cfg: dict) -> str:
 def update_readme(cfg: dict, readme=None) -> None:
     readme = readme or ROOT / "README.md"
     text = readme.read_text()
-    section = build_section(cfg)
+    outside = re.sub(re.escape(START) + r".*?" + re.escape(END), "", text, flags=re.S)
+    section = build_section(cfg, include_chart="figures/cumulative_long_short.png" not in outside)
     if START in text and END in text:
         text = re.sub(re.escape(START) + r".*?" + re.escape(END), lambda m: section, text, flags=re.S)
+    else:
+        text += "\n" + section + "\n"
+    readme.write_text(text)
+
+
+# ---------------------------------------------------------------- second-model comparison
+CMP_START, CMP_END = "<!-- CLEAN_TEST:START -->", "<!-- CLEAN_TEST:END -->"
+
+
+def _model_agreement(main_cfg: dict, other_cfg: dict) -> dict:
+    from scipy import stats
+
+    from .config import load_events
+
+    a, b = main_cfg["paths"].llm_scores, other_cfg["paths"].llm_scores
+    if not (a.exists() and b.exists()):
+        return {}
+    ids = set(load_events(main_cfg)["event_id"])
+    m = pd.read_csv(a).merge(pd.read_csv(b), on="event_id", suffixes=("_a", "_b"))
+    m = m[m["event_id"].isin(ids)]
+    if len(m) < 10:
+        return {}
+    return {"n": len(m), "rank_corr": stats.spearmanr(m["llm_a"], m["llm_b"]).statistic,
+            "same_guidance": (m["llm_guidance_a"] == m["llm_guidance_b"]).mean(),
+            "within_one": ((m["llm_guidance_a"] - m["llm_guidance_b"]).abs() <= 1).mean()}
+
+
+def build_comparison(main_cfg: dict, other_cfg: dict) -> str:
+    sa = pd.read_csv(main_cfg["paths"].results / "summary.csv", index_col=0)
+    sb = pd.read_csv(other_cfg["paths"].results / "summary.csv", index_col=0)
+    ma = json.loads((main_cfg["paths"].results / "meta.json").read_text())
+    mb = json.loads((other_cfg["paths"].results / "meta.json").read_text())
+    prim, base = main_cfg["signals"]["primary"], main_cfg["signals"]["baseline"]
+    A, B, L = sa.loc[prim], sb.loc[prim], sa.loc[base]
+    H = ma["hold_days"]
+
+    def after(r):
+        n = int(r["post_cutoff_n"])
+        return f"{_num(r['post_cutoff_pooled_ic'], 3, True)} ({n} reports)" if n > 0 else "none: it may have read about every report"
+
+    rows = [
+        ("Training data ends", ma["training_cutoff"], mb["training_cutoff"], "not applicable"),
+        ("Reports scored", f"{int(A['n_events']):,}", f"{int(B['n_events']):,}", f"{int(L['n_events']):,}"),
+        ("Reports published after the model's training data ends",
+         f"{int(A['post_cutoff_n'])}", f"{int(B['post_cutoff_n'])}", "not applicable"),
+        (f"Information coefficient, all reports (rank correlation with the {H}-day return above the market)",
+         _num(A["mean_ic"], 3, True), _num(B["mean_ic"], 3, True), _num(L["mean_ic"], 3, True)),
+        ("t-statistic (about 2 or more = unlikely to be luck)", _num(A["ic_t"]), _num(B["ic_t"]), _num(L["ic_t"])),
+        ("Hit rate (top and bottom fifth that moved the predicted way)",
+         _pct(A["hit_rate"]), _pct(B["hit_rate"]), _pct(L["hit_rate"])),
+        (f"Sharpe ratio, each report held {H} trading days, after costs",
+         _num(A.get("event_net_sharpe")), _num(B.get("event_net_sharpe")), _num(L.get("event_net_sharpe"))),
+        ("Sharpe ratio, rebalanced each season, after costs",
+         _num(A.get("seasonal_net_sharpe")), _num(B.get("seasonal_net_sharpe")), _num(L.get("seasonal_net_sharpe"))),
+        ("**Information coefficient using only reports the model could not have read about**",
+         f"**{after(A)}**", f"**{after(B)}**", "not applicable"),
+    ]
+    name_a, name_b = ma["model"], mb["model"]
+    table = [f"| Measure | {name_a} | {name_b} | Finance word list |", "|---|---:|---:|---:|"]
+    table += [f"| {r[0]} | {r[1]} | {r[2]} | {r[3]} |" for r in rows]
+    parts = [CMP_START, "", "## Clean test: an older model that cannot have seen what happened", "",
+             f"The main results use {name_a}, which learned from text written after every report in the sample. "
+             f"Here the same reports are scored by {name_b}, whose training data ends on {mb['training_cutoff']}, so "
+             "for reports published after that date it cannot have read how the stock moved. If its score still "
+             "predicts returns on those reports, the effect is more likely to be real reading skill; if it does not, "
+             "memory is the likelier explanation for the main result.", "", *table, ""]
+    agree = _model_agreement(main_cfg, other_cfg)
+    if agree:
+        parts += [f"_How often the two models agree, on the same {agree['n']} reports: identical guidance score "
+                  f"{_pct(agree['same_guidance'], 0)} of the time, within one step {_pct(agree['within_one'], 0)}; "
+                  f"rank correlation of their scores {_num(agree['rank_corr'])}._", ""]
+    parts += [f"Full tables and charts for the second model: [`{other_cfg['paths'].results.relative_to(ROOT).as_posix()}/`]"
+              f"({other_cfg['paths'].results.relative_to(ROOT).as_posix()}/).", "", CMP_END]
+    return "\n".join(parts)
+
+
+def update_readme_comparison(main_cfg: dict, other_cfg: dict, readme=None) -> None:
+    readme = readme or ROOT / "README.md"
+    text = readme.read_text()
+    section = build_comparison(main_cfg, other_cfg)
+    if CMP_START in text and CMP_END in text:
+        text = re.sub(re.escape(CMP_START) + r".*?" + re.escape(CMP_END), lambda m: section, text, flags=re.S)
+    elif "## How the study works" in text:
+        text = text.replace("## How the study works", section + "\n\n---\n\n## How the study works", 1)
     else:
         text += "\n" + section + "\n"
     readme.write_text(text)

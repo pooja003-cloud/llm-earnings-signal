@@ -22,6 +22,8 @@ def perf_stats(r: pd.Series) -> dict:
         "cagr": wealth.iloc[-1] ** (1 / years) - 1 if years > 0 else np.nan,
         "ann_vol": ann_vol,
         "sharpe": ann_ret / ann_vol if ann_vol > 0 else np.nan,
+        # approximate standard error of an annualized Sharpe ratio (Lo, 2002, independent returns)
+        "sharpe_se": np.sqrt((1 + 0.5 * (ann_ret / ann_vol) ** 2) / years) if ann_vol > 0 and years > 0 else np.nan,
         "max_drawdown": dd.min(),
         "total_return": wealth.iloc[-1] - 1,
         "days": len(r),
@@ -42,9 +44,14 @@ def ic_summary(ics: pd.Series) -> dict:
     if n == 0:
         return {"mean_ic": np.nan, "ic_t": np.nan, "ic_pos_share": np.nan, "seasons": 0}
     sd = ics.std(ddof=1) if n > 1 else np.nan
+    t = ics.mean() / sd * np.sqrt(n) if sd and sd > 0 else np.nan
+    df = n - 1
     return {
         "mean_ic": ics.mean(),
-        "ic_t": ics.mean() / sd * np.sqrt(n) if sd and sd > 0 else np.nan,
+        "ic_t": t,
+        # with few seasons the t distribution has fat tails: 5% two-sided needs |t| > ~2.26 at 10 seasons
+        "ic_p": float(2 * stats.t.sf(abs(t), df)) if df > 0 and not np.isnan(t) else np.nan,
+        "ic_t_crit": float(stats.t.ppf(0.975, df)) if df > 0 else np.nan,
         "ic_pos_share": (ics > 0).mean(),
         "seasons": n,
     }
@@ -94,3 +101,24 @@ def factor_regression(r: pd.Series, factors: pd.DataFrame | None, lags: int = 5)
         out[f"beta_{c}"] = fit.params[c]
         out[f"t_{c}"] = fit.tvalues[c]
     return out
+
+
+def event_time_exposure(events: pd.DataFrame, returns: pd.DataFrame, n_days: int, H: int) -> dict:
+    """How concentrated the event-time book is: names per leg and days with only one leg."""
+    T = n_days
+    cnt = {1: np.zeros(T), -1: np.zeros(T)}
+    for p, leg in zip(events["t0_pos"], events["leg"]):
+        if leg:
+            cnt[leg][p + 1:min(p + H + 1, T)] += 1
+    long, short = cnt[1][-len(returns):] if len(returns) else cnt[1], cnt[-1][-len(returns):] if len(returns) else cnt[-1]
+    both = returns["long"].notna() & returns["short"].notna()
+    one = returns["long"].notna() ^ returns["short"].notna()
+    active = (long > 0) | (short > 0)
+    return {
+        "event_positions_long": int((events["leg"] == 1).sum()),
+        "event_positions_short": int((events["leg"] == -1).sum()),
+        "event_median_names_long": float(np.median(long[active])) if active.any() else np.nan,
+        "event_median_names_short": float(np.median(short[active])) if active.any() else np.nan,
+        "event_share_both_legs": float(both.mean()) if len(returns) else np.nan,
+        "event_share_one_leg": float(one.mean()) if len(returns) else np.nan,
+    }

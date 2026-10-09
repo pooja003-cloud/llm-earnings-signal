@@ -12,27 +12,38 @@ counts positive and negative words.
 
 ## In short
 
-**What happened.** Stocks whose reports the language model rated most upbeat
-did better than the market over the next 20 trading days (about one month),
-and stocks it rated most gloomy did worse. The gap was small but steady. The
-word-counting method found nothing useful.
+**The main test, chosen before any data were analysed:** does the model's tone
+score rank stocks by how well they do over the next 20 trading days (about one
+month)? It did, a little. The rank correlation was **+0.08** (0 means no link),
+and it was positive in 8 of 10 earnings seasons. The classic word-counting
+method scored **−0.04**, no better than chance. But with only 10 seasons the
+result falls just short of the usual bar for statistical significance
+(p = 0.08), and the pre-chosen trading strategy, rebalanced after each earnings
+season, made little after costs.
 
-**The big caveat.** The model learned from internet text up to June 2026, which
-is *after* every report in this study (July 2023 to December 2025). It may have
+**The most interesting pattern (exploratory):** the effect appears in the first
+few days after a report and then fades. Trades placed right after each report
+did much better than the seasonal strategy, which trades about five weeks
+later. That version holds only a few stocks at a time, so it is fragile.
+
+**The big caveat:** the model learned from internet text up to June 2026,
+*after* every report in this study (July 2023 to December 2025). It may have
 read news about how these stocks moved, so part of its "skill" could be memory.
-Treat the results as a best case, not proof. The section
-[Biases and limitations](#biases-and-limitations) explains how to test this
-properly for free.
+Treat the results as a best case, not proof. The
+[clean test](#biases-and-limitations) with an older model addresses this.
+
+![Growth of $1 in the long/short portfolios](results/figures/cumulative_long_short.png)
 
 ## Key results in plain words
 
 | Question | Answer |
 |---|---|
-| Does the model's tone rating line up with the next month's returns? | Yes, a little. Rank correlation of +0.08 (0 = no link). The finance word list scored −0.04, which is no better than chance. |
-| Is that just luck? | Probably not, but it is close. In 8 of 10 earnings seasons the link was positive. The t-statistic was 1.98, right at the usual "about 2 or more" bar for "unlikely to be luck". |
-| How big was the difference in returns? | The most upbeat fifth of reports beat the market by 0.41% over 20 days. The most gloomy fifth trailed it by 0.57%. |
-| Could you have made money trading on it? | On paper, yes for one month: buying the upbeat fifth and selling short the gloomy fifth, holding each for 20 trading days, gave a Sharpe ratio of 1.41 after costs (above 1 is good). Waiting until after each earnings season to trade mostly lost the effect (Sharpe ratio 0.21). |
-| Which part of the report mattered most? | What management said about **future guidance**, and how that changed since the previous quarter. Comments on **customer demand** showed nothing. |
+| Does the model's tone score line up with the next month's returns? | Yes, a little: a rank correlation of +0.08, positive in 8 of 10 earnings seasons. The finance word list scored −0.04. |
+| Is that just luck? | It might be. The t-statistic was 1.98; with only 10 seasons, the usual 5% significance bar is about 2.26. The p-value was 0.08, so there is roughly an 8% chance of a result this strong with no real link. |
+| How big was the difference in returns? | The most upbeat fifth of reports beat the market by 0.41% over 20 days; the most gloomy fifth trailed it by 0.57%. |
+| Could you have made money trading on it? | Not with the pre-chosen strategy: rebalancing after each earnings season gave a Sharpe ratio of only 0.21 after costs. Trading right after each report looked much better (Sharpe ratio 1.41), but that is exploratory and rests on just 2 or 3 stocks on each side on a typical day, so its margin of error is about ±0.9. |
+| How long does the effect last? | A few days. Starting the same trades 5 trading days later cut the Sharpe ratio from 1.41 to 0.45, and 10 days later it turned negative. |
+| Which part of the report mattered most? | What management said about **future guidance**, and how that changed since the previous quarter, had the strongest results. Comments on **customer demand** showed nothing. None of the topics is significant on its own. |
 | Does the model give the same answer twice? | Yes. Scoring the same reports a second time gave the identical guidance rating 80% of the time, and it was never more than one step apart. |
 
 ## What the numbers mean
@@ -43,7 +54,9 @@ properly for free.
 | Tone score | The model's rating from −2 (clearly negative, for example guidance cut) to +2 (clearly positive, for example guidance raised). |
 | Return above the market | The stock's return minus the return of an S&P 500 index fund over the same days. It removes the effect of the whole market going up or down. |
 | Information coefficient | How well a score *ranks* stocks by their later returns. A rank correlation from −1 to +1; 0 means no link. In investing, +0.05 to +0.10 is considered useful. |
-| t-statistic | How confident we can be that a result is not luck. Roughly, 2 or more means "unlikely to be chance". |
+| t-statistic | How far a result is from zero, measured in units of its own uncertainty. The bar for "unlikely to be chance" depends on the amount of data: with 10 earnings seasons it is about 2.26. |
+| p-value | The chance of seeing a result at least this strong if there were really no link. Below 0.05 is the usual bar for "statistically significant". |
+| Standard error | The typical size of the error in an estimate. A Sharpe ratio of 1.4 with a standard error of 0.9 could easily be anywhere from about 0.5 to 2.3. |
 | Hit rate | How often the most upbeat and most gloomy fifths moved the way their score predicted. 50% is a coin flip. |
 | Long/short portfolio | Buy the stocks with the most upbeat reports and sell short (bet against) those with the most gloomy reports. It makes money if the first group beats the second, whatever the overall market does. |
 | Sharpe ratio | Return earned per unit of risk taken. Above 1 is good; the stock market as a whole is usually around 0.4 to 0.6. |
@@ -67,29 +80,58 @@ The section below is written automatically by `earnsig report` from the files in
 > Treat it as a best case. A clean test needs a model trained before the reports were published
 > (see *Biases and limitations* below).
 
-_Sample: 525 earnings reports from 50 companies, 2023-07-07 to 2025-12-23. Scored by: Claude Code (haiku). Returns are measured above the S&P 500 index fund (SPY). Trading costs: 0.10% per trade plus 0.50% a year to borrow shares for selling short._
+_Sample: 525 earnings reports from 50 companies, 2023-07-07 to 2025-12-23. Scored by: Claude Code (haiku), exact model `claude-haiku-5-5`. Returns are measured above the S&P 500 index fund (SPY). Trading costs: 0.10% per trade plus 0.50% a year to borrow shares for selling short._
 
-![Growth of $1 in the long/short portfolios](results/figures/cumulative_long_short.png)
+### Main test (chosen before the data were analysed)
 
-### All measures
+The `llm` score (future-guidance tone, with the other topics as a tie-breaker), its information coefficient against the 20-day return above the market, and a long/short portfolio rebalanced after each earnings season. These choices were fixed in the settings before any real report was scored.
+
+| Main test | Language model tone | Finance word list |
+|---|---:|---:|
+| Information coefficient: rank correlation of the score with the 20-day return above the market | +0.082 | -0.038 |
+| t-statistic across 10 seasons (5% significance needs about 2.26 with this few seasons) | 1.98 | -0.74 |
+| p-value (chance of a result this strong if there were no real link; below 0.05 is the usual bar) | 0.08 | 0.48 |
+| Earnings seasons where the correlation was positive | 80% of 10 | 50% of 10 |
+| Portfolio rebalanced each season, after costs: Sharpe ratio (± one standard error) | 0.21 (± 0.64) | -0.27 (± 0.65) |
+
+**Verdict on the main test:** the language model's score was positively linked to later returns (information coefficient +0.082), but the link is **not** statistically significant at the usual 5% level (p = 0.08), and the pre-chosen seasonal portfolio made little after costs. Treat the result as suggestive, not proven.
+
+### Exploratory results
+
+Everything below was examined after seeing the data. With this many variations, some will look good by luck, so none of it should be read as a finding on its own.
+
+**The 20-day portfolio.** Holding each report for 20 trading days looks much better than the main portfolio, but it is fragile: on a typical day it holds only a few stocks on each side, and on some days only one side, so its Sharpe ratio has a wide margin of error (shown below).
+
+**Why the two portfolios differ.** The link between tone and returns shows up in the first few days after a report. Starting the same trades later shows how fast it fades; the seasonal portfolio typically trades 36 calendar days after a report, after the effect has mostly gone. These five numbers are themselves noisy, so read the pattern, not each value.
+
+| Trades start this many trading days later | 0 | 5 | 10 | 20 | 40 |
+|---|---:|---:|---:|---:|---:|
+| Sharpe ratio after costs | 1.41 | 0.45 | -0.60 | -0.02 | 0.43 |
+
+#### All measures
 
 | Measure | Language model tone | Finance word list |
 |---|---:|---:|
 | Reports with a score | 525 | 525 |
 | Information coefficient: rank correlation of score with the 20-day return above the market | +0.082 | -0.038 |
-| t-statistic of the information coefficient across seasons (about 2 or more = unlikely to be luck) | 1.98 | -0.74 |
+| t-statistic of the information coefficient across seasons | 1.98 | -0.74 |
+| p-value | 0.08 | 0.48 |
 | Earnings seasons where the correlation was positive | 80% of 10 | 50% of 10 |
 | Hit rate: top and bottom fifth that moved the predicted way | 55.5% | 52.6% |
 | Average 20-day return above the market, most upbeat fifth / most gloomy fifth | 0.41% / -0.57% | -0.27% / 0.12% |
 | **Long/short portfolio, rebalanced each season, after costs:** yearly return | 2.7% | -3.3% |
 | Yearly volatility (typical size of ups and downs) | 12.8% | 12.3% |
 | Sharpe ratio (return per unit of risk), after costs (before costs) | 0.21 (0.32) | -0.27 (-0.19) |
+| Standard error of that Sharpe ratio | 0.64 | 0.65 |
 | Maximum drawdown (worst fall from a peak) | -18.1% | -19.9% |
 | Turnover per rebalance (replacing every holding = 400%) | 212% | 118% |
 | Holding periods that made money | 60% | 60% |
-| **Long/short portfolio, each report held 20 trading days, after costs:** Sharpe ratio | 1.41 | -0.94 |
+| **Long/short portfolio, each report held 20 trading days, after costs:** Sharpe ratio (± one standard error) | 1.41 (± 0.92) | -0.94 (± 0.77) |
 | Maximum drawdown | -14.3% | -46.6% |
-| **Fama-French five factors plus momentum:** alpha, yearly return not explained by the factors (t-statistic) | 1.5% (0.22) | -7.6% (-1.20) |
+| Stocks held on a typical day, long / short | 2 / 3 | 2 / 2 |
+| Days with only one side held (other side hedged with the market fund) | 23% | 20% |
+| Alpha against the factors, yearly (t-statistic) | 23.0% (1.90) | -30.4% (-2.32) |
+| **Fama-French five factors plus momentum, seasonal portfolio:** alpha, yearly return not explained by the factors (t-statistic) | 1.5% (0.22) | -7.6% (-1.20) |
 | Market beta (sensitivity to the overall stock market) | -0.09 | +0.22 |
 | Size / value / profitability / investment betas | -0.18 / -0.25 / -0.19 / +0.02 | +0.08 / -0.23 / -0.06 / -0.01 |
 | Momentum beta (tendency to hold recent winners) | +0.20 | +0.20 |
@@ -98,7 +140,7 @@ _Sample: 525 earnings reports from 50 companies, 2023-07-07 to 2025-12-23. Score
 
 ![Return after the report, by tone group](results/figures/car_by_quintile.png)
 
-### Which topic matters most?
+#### Which topic matters most?
 
 Each report also got separate scores for what management said about future guidance, profit margins and customer demand.
 
@@ -114,7 +156,7 @@ Each report also got separate scores for what management said about future guida
 
 ![Information coefficient by score](results/figures/ic_by_signal.png)
 
-### Does the model give the same answer twice?
+#### Does the model give the same answer twice?
 
 The same 40 reports were scored twice with identical inputs.
 
@@ -175,7 +217,7 @@ measures how often the answers match.
 | Option | What you need | Cost |
 |---|---|---|
 | `claude_code` (default) | [Claude Code](https://code.claude.com), signed in with a Claude Pro or Max subscription | Included in the subscription; uses its normal usage limits |
-| `ollama` | [Ollama](https://ollama.com) and a downloaded model, for example `ollama pull llama3.1:8b` (about 5 gigabytes; 16 gigabytes of memory recommended) | Free; runs on your own computer |
+| `ollama` | [Ollama](https://ollama.com) and a downloaded model, for example `ollama pull llama3.2:3b` (about 2 gigabytes; runs on a Mac with 8 gigabytes of memory) | Free; runs on your own computer |
 | `anthropic` | A key for Anthropic's paid programming interface | Pay per use (optional, not needed) |
 
 With `claude_code`, a large batch of reports may not fit within one usage
@@ -183,10 +225,12 @@ period. When the limit is reached, scoring stops cleanly, and running
 `earnsig score` again after the limit resets carries on where it stopped. The
 Haiku model uses the least of the allowance.
 
-With `ollama`, an older model is an advantage: Llama 3.1 learned from text up to
-December 2023, so it cannot have read about 2024 and 2025 stock moves (set
-`training_cutoff: "2023-12-31"`). Small local models read less accurately than
-Claude, so comparing the two is a useful experiment in itself.
+With `ollama`, an older model is an advantage: Llama 3.2 learned from text up to
+December 2023, so it cannot have read about 2024 and 2025 stock moves. The
+ready-made settings in [`config/llama.yaml`](config/llama.yaml) score the same
+reports with it and keep its results separate in `results/llama/`. Small local
+models read less accurately than Claude, so comparing the two is a useful
+experiment in itself.
 
 The score used for trading (`llm`) is the guidance score, with the average of
 the other three scores added at one tenth of the weight to break ties, because
@@ -217,7 +261,7 @@ automated tests in [`tests/test_events.py`](tests/test_events.py).
   day of March, June, September and December, rank the stocks by the score of
   their most recent report published *before* that day. Buy the top fifth, sell
   short the bottom fifth, in equal amounts, and hold until the next rebalance.
-* **Each report held for 20 trading days (second test).** Every report opens a
+* **Each report held for 20 trading days (exploratory).** Every report opens a
   position for the 20 trading days after it. Whether it counts as "upbeat" or
   "gloomy" is decided by comparing it only with reports published *earlier*,
   because later reports in the same season are not yet known at that point.
@@ -227,7 +271,16 @@ after a report (a report from late January is first traded on March 1), so it
 only works if tone predicts returns for several months. The 20-day portfolio
 tests the month right after the report directly. In this study the effect
 showed up in the 20-day portfolio and mostly faded in the seasonal one, which
-suggests the market catches up within a few weeks.
+trades a median of 36 days after each report. Delaying the 20-day trades by 5
+to 10 trading days removes most of the effect, so the market seems to catch up
+within about a week.
+
+The 20-day portfolio is also thin: with 50 companies reporting over a few weeks,
+only about a fifth of the reports open at any time fall in each extreme group,
+so on a typical day it holds 2 or 3 stocks on each side, and on about a quarter
+of days only one side (the other side is then hedged with the S&P 500 fund).
+Each side is equally weighted across the stocks it holds, and days with nothing
+held count as zero return.
 
 Trading costs: 0.10% of the amount traded each time a position changes, plus
 0.50% a year to borrow the shares sold short. Both can be changed in the
@@ -251,7 +304,7 @@ settings.
 git clone https://github.com/pooja003-cloud/llm-earnings-signal && cd llm-earnings-signal
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
-pytest -q                      # 51 automated tests, about 3 seconds
+pytest -q                      # 58 automated tests, about 3 seconds
 
 earnsig demo --readme          # practice run on made-up data, no internet needed, about 20 seconds
 ```
@@ -271,6 +324,19 @@ earnsig consistency            # score 40 reports a second time
 earnsig baseline               # finance word list scores
 earnsig backtest               # all calculations and charts
 earnsig report                 # writes the "Detailed results" section of this page
+```
+
+Clean test with an older model, free on your own computer (needs
+[Ollama](https://ollama.com); about 3 to 4 hours for 525 reports on a Mac with
+8 gigabytes of memory):
+
+```bash
+brew install ollama && brew services start ollama
+ollama pull llama3.2:3b
+earnsig --config config/llama.yaml score        # resumes if stopped
+earnsig --config config/llama.yaml consistency
+earnsig --config config/llama.yaml backtest     # results go to results/llama/
+earnsig --config config/llama.yaml compare      # adds the "Clean test" section to this page
 ```
 
 Or run everything with `make all`. All settings are in
@@ -316,21 +382,27 @@ the main results table.
 In this study that test is impossible: Claude Haiku 5.5 learned from text up
 to June 2026, and every report is from July 2023 to December 2025. The free
 way around this is to score the same reports with an older model on your own
-computer through Ollama. Llama 3.1 learned from text up to December 2023, so
-almost all of these reports are new to it. If its scores still predict returns,
+computer through Ollama. Llama 3.2 learned from text up to December 2023, so
+most of these reports are new to it (see [Clean test](#clean-test-an-older-model-that-cannot-have-seen-what-happened)
+once it has been run). If its scores still predict returns,
 the effect is more likely to be real reading skill; if they do not, memory is
 the likelier explanation.
 
 **A small sample.** 50 companies over about 10 quarters is 525 reports and only
-10 earnings seasons, so every number has a wide margin of error. A Sharpe ratio
-measured over two and a half years can easily be off by about 0.6 either way.
+10 earnings seasons, so every number has a wide margin of error. With 10
+seasons, a t-statistic needs to reach about 2.26 (not the familiar 2) for 5%
+significance. A Sharpe ratio measured over two and a half years has a standard
+error of about 0.6 to 0.9, as the results tables show.
 All 1,041 reports since 2021 have been downloaded; set `analysis_start` equal
 to `start_date` in the settings to use them all.
 
 **Only today's survivors.** The list is today's large companies. Companies that
 failed, were bought or became smaller since 2021 are missing, which can make
-results look better or worse than they really were. A stricter study would use
-the list of companies as it stood at each point in time.
+results look better or worse than they really were. The effect on this study
+is probably modest, because both sides of every trade come from the same list
+of survivors, and all 50 were already large, established companies in 2021.
+But it cannot be measured without the historical list. A stricter study would
+use the S&P 500 membership as it stood at each date.
 
 **Only the weeks after the report are tested.** Skipping the price jump on the
 report day is deliberate, because nobody can trade before the report is public.
@@ -349,13 +421,18 @@ both before and after costs.
 
 **Many variations.** Six language model scores, one word-list score, two
 portfolios and several settings add up to many possible versions, and some
-will look good by luck. The main, chosen-in-advance test is the guidance-based
-`llm` score, measured against the market, over 20 trading days.
+will look good by luck. The main test was fixed in the settings before any real
+report was scored: the `llm` score (guidance tone, with the other topics as a
+tie-breaker), its information coefficient against the 20-day return above the
+market, and the portfolio rebalanced after each earnings season. Everything else
+is labelled exploratory.
 
 **Sensitivity to the instructions and the model.** Scores depend on how the
 instructions are worded and which model version reads them. The instruction
 version (`prompt_version`) is stored with every saved answer; change it whenever
-the instructions change.
+the instructions change. The main results used `claude-haiku-5-5`, the model the
+`haiku` setting pointed to on 9 October 2026; new runs record the exact model
+identifier with every saved answer, so a later change of model is visible.
 
 **Data terms.** Filings from the Securities and Exchange Commission are public.
 Yahoo Finance data is for personal use, so the downloaded prices and reports

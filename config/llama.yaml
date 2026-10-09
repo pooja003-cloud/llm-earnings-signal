@@ -1,0 +1,27 @@
+# Clean test: score the same reports with Llama 3.2 (3 billion parameters), an
+# older model run free on your own computer through Ollama. Its training data ends
+# in December 2023, so most reports in the sample (July 2023 to December 2025) are
+# new to it. The 3B size fits a Mac with 8 GB of memory (2 GB download):
+#
+#   ollama pull llama3.2:3b
+#
+#   earnsig --config config/llama.yaml score
+#   earnsig --config config/llama.yaml consistency
+#   earnsig --config config/llama.yaml backtest
+#   earnsig --config config/llama.yaml compare
+#
+# Only the settings below differ from config.yaml. Results go to results/llama/
+# so the Claude results in results/ are not touched.
+base: config.yaml
+
+results_dir: results/llama
+
+llm:
+  provider: ollama
+  ollama_model: llama3.2:3b
+  model_version: llama3.2:3b        # the exact digest is recorded with every saved answer
+  ollama_num_ctx: 8192              # tokens of context; small enough for 8 GB of memory
+  max_chars: 24000                  # first ~24,000 characters of each report (the narrative and outlook come first)
+  workers: 1                        # Ollama answers one request at a time by default
+  scores_file: scores_llama.csv     # keeps the Claude scores in scores_llm.csv
+  training_cutoff: "2023-12-31"     # Llama 3.2: December 2023
