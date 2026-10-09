@@ -315,7 +315,3 @@ change the prompt, and report the consistency check.
 **Data terms.** SEC filings are public. Yahoo Finance data is for personal use;
 `data/` is git-ignored, so raw prices and documents are not redistributed. The
 Loughran-McDonald dictionary has its own license (free for academic use).
-
-## License
-
-MIT for the code in this repository.
