@@ -1,0 +1,20 @@
+# secrets
+.env
+
+# downloaded / generated data (re-create with the pipeline)
+data/
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+build/
+dist/
+
+# os / editors
+.DS_Store
+.idea/
+.vscode/

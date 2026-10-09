@@ -1,0 +1,14 @@
+{
+  "n_events": 1600,
+  "n_tickers": 80,
+  "first_event": "2021-01-20",
+  "last_event": "2025-11-20",
+  "provider": "mock",
+  "model": "mock (synthetic demo)",
+  "benchmark": "market",
+  "hold_days": 20,
+  "cost_bps": 10,
+  "borrow_bps": 50,
+  "training_cutoff": "2024-01-01",
+  "has_factors": true
+}
