@@ -26,11 +26,16 @@ few days after a report and then fades. Trades placed right after each report
 did much better than the seasonal strategy, which trades about five weeks
 later. That version holds only a few stocks at a time, so it is fragile.
 
-**The big caveat:** the model learned from internet text up to June 2026,
-*after* every report in this study (July 2023 to December 2025). It may have
-read news about how these stocks moved, so part of its "skill" could be memory.
-Treat the results as a best case, not proof. The
-[clean test](#biases-and-limitations) with an older model addresses this.
+**The clean test does not confirm a lasting effect.** Claude learned from
+internet text up to June 2026, *after* every report in this study, so it may
+have read how these stocks moved. To check, the same reports were scored by
+Llama 3.2, a smaller model whose training data ends in December 2023. On the
+417 reports from 2024 and 2025, which Llama cannot have read about, no score
+predicted returns: Claude +0.04, Llama +0.02, the word list −0.05, none of them
+statistically significant. Almost all of Claude's overall result comes from
+the 108 reports of late 2023 (+0.23). Memory, a period when tone mattered more,
+or chance could each explain that; this sample cannot tell them apart. See the
+[clean test](#clean-test-an-older-model-that-cannot-have-seen-what-happened).
 
 ![Growth of $1 in the long/short portfolios](results/figures/cumulative_long_short.png)
 
@@ -44,6 +49,7 @@ Treat the results as a best case, not proof. The
 | Could you have made money trading on it? | Not with the pre-chosen strategy: rebalancing after each earnings season gave a Sharpe ratio of only 0.21 after costs. Trading right after each report looked much better (Sharpe ratio 1.41), but that is exploratory and rests on just 2 or 3 stocks on each side on a typical day, so its margin of error is about ±0.9. |
 | How long does the effect last? | A few days. Starting the same trades 5 trading days later cut the Sharpe ratio from 1.41 to 0.45, and 10 days later it turned negative. |
 | Which part of the report mattered most? | What management said about **future guidance**, and how that changed since the previous quarter, had the strongest results. Comments on **customer demand** showed nothing. None of the topics is significant on its own. |
+| Did it hold up on reports a model could not have read about? | No. On the 417 reports from 2024 and 2025, Claude's correlation was +0.04 (p = 0.36) and Llama's +0.02 (p = 0.64). The overall result rests mostly on late 2023. |
 | Does the model give the same answer twice? | Yes. Scoring the same reports a second time gave the identical guidance rating 80% of the time, and it was never more than one step apart. |
 
 ## What the numbers mean
@@ -80,7 +86,7 @@ The section below is written automatically by `earnsig report` from the files in
 > Treat it as a best case. A clean test needs a model trained before the reports were published
 > (see *Biases and limitations* below).
 
-_Sample: 525 earnings reports from 50 companies, 2023-07-07 to 2025-12-23. Scored by: Claude Code (haiku), exact model `claude-haiku-5-5`. Returns are measured above the S&P 500 index fund (SPY). Trading costs: 0.10% per trade plus 0.50% a year to borrow shares for selling short._
+_Sample: 525 earnings reports from 50 companies, 2023-07-07 to 2025-12-23. Scored by: Claude (claude-haiku-5-5), exact model `llama3.2:3b (digest a80c4f17acd5)`. Returns are measured above the S&P 500 index fund (SPY). Trading costs: 0.10% per trade plus 0.50% a year to borrow shares for selling short._
 
 ### Main test (chosen before the data were analysed)
 
@@ -168,6 +174,40 @@ The same 40 reports were scored twice with identical inputs.
 | Demand tone | 80% | 100% | 0.91 | 0.92 |
 
 <!-- RESULTS:END -->
+
+---
+
+<!-- CLEAN_TEST:START -->
+
+## Clean test: an older model that cannot have seen what happened
+
+The main results use Claude (claude-haiku-5-5), which learned from text written after every report in the sample. Here the same reports are scored by Llama (llama3.2:3b, run with Ollama), whose training data ends on 2023-12-31, so for reports published after that date it cannot have read how the stock moved. If its score still predicts returns on those reports, the effect is more likely to be real reading skill; if it does not, memory is the likelier explanation for the main result. One caution: the second model is much smaller, so a weaker result can also mean it simply reads less well.
+
+| Measure | Claude (claude-haiku-5-5) | Llama (llama3.2:3b, run with Ollama) | Finance word list |
+|---|---:|---:|---:|
+| Training data ends | 2026-06-30 | 2023-12-31 | not applicable |
+| Reports scored | 525 | 525 | 525 |
+| Reports published after the model's training data ends | 0 | 417 | not applicable |
+| Information coefficient, all reports (rank correlation with the 20-day return above the market) | +0.082 | +0.029 | -0.038 |
+| t-statistic across seasons (5% significance needs about 2.26) | 1.98 | 0.79 | -0.74 |
+| p-value | 0.08 | 0.45 | 0.48 |
+| Hit rate (top and bottom fifth that moved the predicted way) | 55.5% | 47.8% | 52.6% |
+| Sharpe ratio, each report held 20 trading days, after costs | 1.41 | -0.49 | -0.94 |
+| Sharpe ratio, rebalanced each season, after costs | 0.21 | -0.08 | -0.27 |
+| **Information coefficient using only reports the model could not have read about** | **none: it may have read about every report** | **+0.023 (417 reports)** | not applicable |
+
+**The same comparison split at the second model's training cutoff** (rank correlation of each score with the 20-day return above the market, pooled across reports, with its p-value):
+
+| Period | Reports | Claude (claude-haiku-5-5) | Llama (llama3.2:3b, run with Ollama) | Finance word list |
+|---|---:|---:|---:|---:|
+| Up to the end of December 2023 (second model may have read about these) | 108 | +0.229 (p 0.02) | +0.085 (p 0.38) | +0.036 (p 0.71) |
+| After December 2023 (second model cannot have read about these) | 417 | +0.045 (p 0.36) | +0.023 (p 0.64) | -0.046 (p 0.34) |
+
+_How often the two models agree, on the same 525 reports: identical guidance score 26% of the time, within one step 73%; rank correlation of their scores 0.39._
+
+Full tables and charts for the second model: [`results/llama/`](results/llama/).
+
+<!-- CLEAN_TEST:END -->
 
 ---
 
@@ -385,14 +425,17 @@ figures and wording can still give a company away. The only clean test uses
 reports published after the model's training cutoff, shown in the last row of
 the main results table.
 
-In this study that test is impossible: Claude Haiku 5.5 learned from text up
-to June 2026, and every report is from July 2023 to December 2025. The free
-way around this is to score the same reports with an older model on your own
-computer through Ollama. Llama 3.2 learned from text up to December 2023, so
-most of these reports are new to it (see [Clean test](#clean-test-an-older-model-that-cannot-have-seen-what-happened)
-once it has been run). If its scores still predict returns,
-the effect is more likely to be real reading skill; if they do not, memory is
-the likelier explanation.
+For Claude that test is impossible: Claude Haiku 5.5 learned from text up to
+June 2026, and every report is from July 2023 to December 2025. So the same
+reports were also scored by an older model, Llama 3.2 (3 billion parameters,
+training data up to December 2023), run free through Ollama; 417 of the 525
+reports are new to it. The [clean test](#clean-test-an-older-model-that-cannot-have-seen-what-happened)
+shows that on those 417 reports no score predicts returns, and that Claude's
+own result on them is also weak (+0.04). Llama did better on the reports it
+could have read about (+0.09) than on those it could not (+0.02), which fits
+the memory explanation, but with only 108 earlier reports that difference could
+also be chance. Llama is also a much smaller model, so part of its weaker result
+may be weaker reading.
 
 **A small sample.** 50 companies over about 10 quarters is 525 reports and only
 10 earnings seasons, so every number has a wide margin of error. With 10

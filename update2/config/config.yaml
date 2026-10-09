@@ -1,0 +1,56 @@
+# Central configuration. Paths are relative to the repo root.
+# Values written as ${VAR} are read from the environment (or a .env file).
+
+start_date: "2021-01-01"        # first event date to collect
+end_date: "2025-12-31"          # last event date to collect
+analysis_start: "2023-07-01"     # score and analyze documents from this date on
+                                # (~520 for 50 stocks; set to start_date to use everything)
+universe_file: config/universe.csv
+data_dir: data
+results_dir: results
+
+sec:
+  user_agent: "${SEC_USER_AGENT}"   # SEC requires "Name email@example.com"
+  requests_per_second: 8            # SEC limit is 10/s
+
+llm:
+  # Which backend scores the documents:
+  #   claude_code  Claude Code CLI signed in with a Claude Pro/Max plan. No API key.
+  #   ollama       free local model via Ollama. No account at all.
+  #   anthropic    Claude API with ANTHROPIC_API_KEY (pay as you go).
+  provider: claude_code
+  claude_code_model: haiku          # alias: haiku | sonnet | opus. Haiku uses the least of your limits
+  ollama_model: llama3.1:8b         # any model you have pulled with `ollama pull`
+  ollama_url: http://localhost:11434
+  ollama_num_ctx: 16384             # context window in tokens; long releases need >= 16k
+  model: claude-haiku-5-5           # used by the anthropic provider only
+  max_tokens: 600
+  max_chars: 60000                  # truncate very long documents (use ~40000 with ollama)
+  workers: 2                        # parallel requests (keep 1-2 for claude_code and ollama)
+  anonymize: true                   # mask company name, ticker and dates before scoring
+  prompt_version: v1                # bump when you change the prompt (invalidates cache)
+  # Events dated before this are "in-sample" for the LLM: it may have read about
+  # the subsequent stock moves during training. Set it to the published training
+  # cutoff of the model you use (e.g. "2023-12-31" for Llama 3.1). Results are
+  # reported separately after this date.
+  training_cutoff: "2025-02-01"
+  consistency_sample: 40            # documents scored twice to test reliability
+
+event:
+  benchmark: market                 # market | sector  (abnormal return = stock - benchmark)
+  market_ticker: SPY
+  hold_days: 20                     # CAR window is trading days [+1, +hold_days]
+  entry_lag_days: 0                 # extra safety lag after the first tradable close
+
+portfolio:
+  rebalance_months: [3, 6, 9, 12]   # rebalance on first trading day of these months (after each season)
+  lookback_days: 100                # use each stock's latest event within this many calendar days
+  quantiles: 5
+  min_history: 40                   # event-time strategy: prior events needed before trading
+  cost_bps: 10                      # one-way cost per unit of turnover
+  borrow_bps_annual: 50             # fee on the short leg
+
+signals:                            # which signal columns to backtest (see README)
+  primary: llm
+  baseline: lm
+  topics: [llm_guidance, llm_margins, llm_demand, llm_overall, llm_delta]

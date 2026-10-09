@@ -18,8 +18,6 @@ import pandas as pd
 from scipy import stats
 
 from .collect import load_text
-from .config import ROOT
-from pathlib import Path
 
 log = logging.getLogger(__name__)
 
@@ -100,8 +98,6 @@ def validate(d: dict) -> dict:
     for k in TOPICS:
         out[f"{k}_mentioned"] = bool(d[f"{k}_mentioned"])
     out["reason"] = str(d.get("reason", ""))[:300]
-    if d.get("reason_truncated"):
-        out["reason_truncated"] = True
     return out
 
 
@@ -181,8 +177,6 @@ class ClaudeCodeScorer:
                 raise UsageLimitReached(msg)
             raise RuntimeError(f"claude returned no structured output: {msg}")
         res = validate(out["structured_output"])
-        models = sorted((out.get("modelUsage") or {}).keys())
-        res["model_id"] = ", ".join(models) if models else None
         usage = out.get("usage") or {}
         res["input_tokens"] = sum(usage.get(k) or 0 for k in
                                   ("input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"))
@@ -199,29 +193,12 @@ class OllamaScorer:
     """
 
     def __init__(self, model: str = "llama3.1:8b", url: str = "http://localhost:11434",
-                 num_ctx: int = 16384, timeout: int = 180):
+                 num_ctx: int = 16384, timeout: int = 600):
         self.ollama_model = model
         self.model = f"ollama:{model}"
         self.url = url.rstrip("/")
         self.num_ctx = num_ctx
         self.timeout = timeout
-        self.check()
-
-    def check(self) -> None:
-        """Fail early, with the fix, if Ollama is not running or the model is not downloaded."""
-        import requests
-
-        try:
-            tags = requests.get(f"{self.url}/api/tags", timeout=5).json()
-        except Exception:
-            raise RuntimeError("Ollama is not running. Install it from https://ollama.com, open the Ollama app "
-                               "(or run `ollama serve` in another terminal window), then try again.") from None
-        models = {m.get("name", ""): m for m in tags.get("models", [])}
-        wanted = self.ollama_model if ":" in self.ollama_model else f"{self.ollama_model}:latest"
-        self.digest = (models.get(wanted) or {}).get("digest", "")
-        if wanted not in models:
-            raise RuntimeError(f"The model {self.ollama_model} is not downloaded yet. Run "
-                               f"`ollama pull {self.ollama_model}` and try again.")
 
     def score(self, text: str, row: pd.Series | None = None) -> dict:
         import requests
@@ -232,33 +209,14 @@ class OllamaScorer:
                          {"role": "user", "content": USER_TEMPLATE.format(text=text)}],
             "format": SCHEMA,
             "stream": False,
-            "options": {"temperature": 0, "num_ctx": self.num_ctx, "num_predict": 400},  # cap: small models can loop on whitespace
+            "options": {"temperature": 0, "num_ctx": self.num_ctx},
         })
         r.raise_for_status()
         body = r.json()
-        res = validate(parse_json_answer(body["message"]["content"]))
-        res["model_id"] = f"{self.ollama_model} (digest {self.digest[:12]})" if self.digest else self.ollama_model
+        res = validate(json.loads(body["message"]["content"]))
         res["input_tokens"] = body.get("prompt_eval_count")
         res["output_tokens"] = body.get("eval_count")
         return res
-
-
-def parse_json_answer(text: str) -> dict:
-    """Parse a model's JSON answer; rescue the scores if only the trailing reason was cut off.
-
-    The schema lists the scores before ``reason``, so when a small model rambles in the
-    reason and hits the length cap, every score is already complete.
-    """
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        i = text.find('"reason"')
-        if i <= 0:
-            raise
-        d = json.loads(text[:i].rstrip().rstrip(",") + "}")
-        d["reason"] = "(reason cut off at the length limit)"
-        d["reason_truncated"] = True
-        return d
 
 
 class MockScorer:
@@ -299,10 +257,8 @@ class MockScorer:
 
 def scorer_label(cfg: dict) -> str:
     llm = cfg["llm"]
-    if llm["provider"] == "claude_code" and llm.get("model_version"):
-        return f"Claude ({llm['model_version']})"
     return {"claude_code": f"Claude Code ({llm.get('claude_code_model', 'haiku')})",
-            "ollama": f"Llama ({llm.get('ollama_model', '')}, run with Ollama)",
+            "ollama": f"Ollama {llm.get('ollama_model', '')}",
             }.get(llm["provider"], llm["model"])
 
 
@@ -387,11 +343,8 @@ def score_events(cfg: dict, events: pd.DataFrame, scorer, rep: int = 1,
                 log.info("  %d / %d", i, len(todo))
     except KeyboardInterrupt:
         stop.set()
-        cmd = "earnsig score"
-        if cfg.get("config_path") and not str(cfg["config_path"]).endswith("config/config.yaml"):
-            cmd = f"earnsig --config {Path(cfg['config_path']).relative_to(ROOT) if Path(cfg['config_path']).is_relative_to(ROOT) else cfg['config_path']} score"
         log.warning("Stopping (Ctrl+C): finishing the documents already in progress. "
-                    "Everything scored so far is saved; run `%s` to continue.", cmd)
+                    "Everything scored so far is saved; run `earnsig score` to continue.")
         pool.shutdown(wait=True, cancel_futures=True)
         raise SystemExit(130)
     pool.shutdown(wait=True)

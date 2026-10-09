@@ -164,7 +164,8 @@ def build_section(cfg: dict, include_chart: bool = True) -> str:
         parts += [f"> [!NOTE]\n> {meta['n_events'] - post_n} of {meta['n_events']} reports are older than the language model's "
                   f"training cutoff ({meta['training_cutoff']}); the last row of the table uses only the {post_n} after it.", ""]
     bench = "the S&P 500 index fund (SPY)" if meta["benchmark"] == "market" else "each stock's sector fund"
-    version = f", exact model `{meta['model_version']}`" if meta.get("model_version") else ""
+    version = (f", exact model `{meta['model_version']}`"
+               if meta.get("model_version") and meta["model_version"] not in meta["model"] else "")
     lag = meta.get("seasonal_median_days_to_trade")
     parts += [f"_Sample: {meta['n_events']:,} earnings reports from {meta['n_tickers']} companies, "
               f"{meta['first_event']} to {meta['last_event']}. Scored by: {meta['model']}{version}. "
@@ -241,6 +242,35 @@ def _model_agreement(main_cfg: dict, other_cfg: dict) -> dict:
             "within_one": ((m["llm_guidance_a"] - m["llm_guidance_b"]).abs() <= 1).mean()}
 
 
+def _period_table(main_cfg: dict, other_cfg: dict, cutoff: str, names: tuple[str, str], H: int) -> str:
+    """Information coefficient before and after the second model's training cutoff, all three scores."""
+    from scipy import stats
+
+    target = f"car_1_{H}"
+    pa = main_cfg["paths"].results / "events_scored.csv"
+    pb = other_cfg["paths"].results / "events_scored.csv"
+    if not (pa.exists() and pb.exists()):
+        return ""
+    a = pd.read_csv(pa, parse_dates=["t0"])
+    b = pd.read_csv(pb, usecols=["event_id", "llm"]).rename(columns={"llm": "llm_other"})
+    e = a.merge(b, on="event_id").dropna(subset=[target])
+    cut = pd.Timestamp(cutoff)
+    periods = [(f"Up to the end of {cut:%B %Y} (second model may have read about these)", e[e["t0"] <= cut]),
+               (f"After {cut:%B %Y} (second model cannot have read about these)", e[e["t0"] > cut])]
+    head = (f"| Period | Reports | {names[0]} | {names[1]} | Finance word list |\n"
+            "|---|---:|---:|---:|---:|")
+    rows = []
+    for label, d in periods:
+        if len(d) < 10:
+            continue
+        cells = []
+        for col in ("llm", "llm_other", "lm"):
+            r = stats.spearmanr(d[col], d[target])
+            cells.append(f"{r.statistic:+.3f} (p {r.pvalue:.2f})")
+        rows.append(f"| {label} | {len(d)} | " + " | ".join(cells) + " |")
+    return head + "\n" + "\n".join(rows) if rows else ""
+
+
 def build_comparison(main_cfg: dict, other_cfg: dict) -> str:
     sa = pd.read_csv(main_cfg["paths"].results / "summary.csv", index_col=0)
     sb = pd.read_csv(other_cfg["paths"].results / "summary.csv", index_col=0)
@@ -261,7 +291,9 @@ def build_comparison(main_cfg: dict, other_cfg: dict) -> str:
          f"{int(A['post_cutoff_n'])}", f"{int(B['post_cutoff_n'])}", "not applicable"),
         (f"Information coefficient, all reports (rank correlation with the {H}-day return above the market)",
          _num(A["mean_ic"], 3, True), _num(B["mean_ic"], 3, True), _num(L["mean_ic"], 3, True)),
-        ("t-statistic (about 2 or more = unlikely to be luck)", _num(A["ic_t"]), _num(B["ic_t"]), _num(L["ic_t"])),
+        (f"t-statistic across seasons (5% significance needs about {_num(A.get('ic_t_crit'))})",
+         _num(A["ic_t"]), _num(B["ic_t"]), _num(L["ic_t"])),
+        ("p-value", _num(A.get("ic_p"), 2), _num(B.get("ic_p"), 2), _num(L.get("ic_p"), 2)),
         ("Hit rate (top and bottom fifth that moved the predicted way)",
          _pct(A["hit_rate"]), _pct(B["hit_rate"]), _pct(L["hit_rate"])),
         (f"Sharpe ratio, each report held {H} trading days, after costs",
@@ -279,7 +311,11 @@ def build_comparison(main_cfg: dict, other_cfg: dict) -> str:
              f"Here the same reports are scored by {name_b}, whose training data ends on {mb['training_cutoff']}, so "
              "for reports published after that date it cannot have read how the stock moved. If its score still "
              "predicts returns on those reports, the effect is more likely to be real reading skill; if it does not, "
-             "memory is the likelier explanation for the main result.", "", *table, ""]
+             "memory is the likelier explanation for the main result. One caution: the second model is much "
+             "smaller, so a weaker result can also mean it simply reads less well.", "", *table, "",
+             "**The same comparison split at the second model's training cutoff** (rank correlation of each score "
+             f"with the {H}-day return above the market, pooled across reports, with its p-value):", "",
+             _period_table(main_cfg, other_cfg, mb["training_cutoff"], (name_a, name_b), H), ""]
     agree = _model_agreement(main_cfg, other_cfg)
     if agree:
         parts += [f"_How often the two models agree, on the same {agree['n']} reports: identical guidance score "
