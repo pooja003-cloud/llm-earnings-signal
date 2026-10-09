@@ -17,9 +17,9 @@ GRID = "#e6e5e1"
 BLUE, ORANGE = "#2a78d6", "#eb6834"
 # diverging red <-> gray <-> blue for ordered quintiles (Q1 most negative)
 DIVERGING = ["#c23434", "#f0a3a2", "#8f8e8a", "#9cc0ee", "#1f5fae"]
-LABELS = {"llm": "LLM tone", "lm": "Loughran-McDonald", "llm_guidance": "LLM: guidance",
-          "llm_margins": "LLM: margins", "llm_demand": "LLM: demand", "llm_overall": "LLM: overall",
-          "llm_delta": "LLM: change vs. prior"}
+LABELS = {"llm": "Language model tone", "lm": "Finance word list", "llm_guidance": "Language model: guidance",
+          "llm_margins": "Language model: margins", "llm_demand": "Language model: demand",
+          "llm_overall": "Language model: overall tone", "llm_delta": "Language model: change since last quarter"}
 
 
 def _style(ax, title: str, subtitle: str | None = None):
@@ -47,8 +47,8 @@ def make_figures(cfg: dict, out: dict, ev: pd.DataFrame, paths: pd.DataFrame, be
 
     # 1. cumulative return of both long/short constructions, net of costs, LLM vs. baseline
     fig, axes = plt.subplots(2, 1, figsize=(9, 7.4), dpi=150, sharex=True)
-    titles = {"seasonal": "Seasonal book: rebalanced after each earnings season",
-              "event_time": f"Event-time book: each release held days +1..+{H}"}
+    titles = {"seasonal": "Rebalanced once after each earnings season",
+              "event_time": f"Each report held for {H} trading days"}
     for ax, kind in zip(axes, ("seasonal", "event_time")):
         series = {s: out[s][kind]["returns"]["net"] for s in (prim, base)
                   if s in out and len(out[s][kind]["returns"])}
@@ -66,8 +66,9 @@ def make_figures(cfg: dict, out: dict, ev: pd.DataFrame, paths: pd.DataFrame, be
         ax.set_ylabel("Growth of $1", color=INK2, fontsize=9)
         _style(ax, titles[kind])
         ax.title.set_fontsize(10.5)
-    fig.suptitle(("SYNTHETIC DEMO DATA - not a real result\n" if demo else "") + f"Long/short, top vs. bottom quintile, net of {cfg['portfolio']['cost_bps']} bps costs "
-                 f"and {cfg['portfolio']['borrow_bps_annual']} bps/yr borrow",
+    fig.suptitle(("SYNTHETIC DEMO DATA - not a real result\n" if demo else "") + "Buy the most upbeat fifth of reports, sell short the most gloomy fifth\n"
+                 f"Growth of $1 after {cfg['portfolio']['cost_bps'] / 100:.2f}% per trade and "
+                 f"{cfg['portfolio']['borrow_bps_annual'] / 100:.2f}% a year borrowing fee",
                  x=0.01, ha="left", fontsize=12, fontweight="bold", color=INK)
     fig.tight_layout()
     fig.savefig(fig_dir / "cumulative_long_short.png", facecolor=SURFACE)
@@ -81,17 +82,17 @@ def make_figures(cfg: dict, out: dict, ev: pd.DataFrame, paths: pd.DataFrame, be
         fig, ax = plt.subplots(figsize=(9, 4.6), dpi=150)
         for qv, color in zip(range(1, 6), DIVERGING):
             m = P[(e["qt"] == qv).values].mean() * 100
-            name = {1: "Q1 most negative", 5: "Q5 most positive"}.get(qv, f"Q{qv}")
+            name = {1: "Group 1: most gloomy fifth", 5: "Group 5: most upbeat fifth"}.get(qv, f"Group {qv}")
             ax.plot(m.index, m.values, color=color, lw=2, label=name)
-            ax.annotate(f"Q{qv}", (m.index[-1], m.values[-1]), xytext=(5, 0), textcoords="offset points",
+            ax.annotate(f"{qv}", (m.index[-1], m.values[-1]), xytext=(5, 0), textcoords="offset points",
                         va="center", fontsize=9, color=INK)
         ax.axhline(0, color=INK2, lw=0.8)
         ax.set_xticks(range(0, H + 1, 5 if H >= 10 else 1))
-        ax.set_xlabel("Trading days after the first tradable close (day 0)", color=INK2, fontsize=9)
-        ax.set_ylabel("Cumulative abnormal return, %", color=INK2, fontsize=9)
+        ax.set_xlabel("Trading days after the first chance to trade (day 0)", color=INK2, fontsize=9)
+        ax.set_ylabel("Return above the market, % (cumulative)", color=INK2, fontsize=9)
         ax.legend(frameon=False, fontsize=9, loc="upper left", labelcolor=INK)
-        _style(ax, f"{tag}Post-event drift by LLM tone quintile",
-               f"Mean CAR vs. {cfg['event']['benchmark']} benchmark; quintiles formed within each season (ex post, for illustration)")
+        _style(ax, f"{tag}Return after the report, by language model tone",
+               "Average return above the market; reports split into five equal groups within each earnings season")
         fig.tight_layout()
         fig.savefig(fig_dir / "car_by_quintile.png", facecolor=SURFACE)
         plt.close(fig)
@@ -113,8 +114,8 @@ def make_figures(cfg: dict, out: dict, ev: pd.DataFrame, paths: pd.DataFrame, be
         for yi, r in zip(y, rows):
             ax.annotate(f"{r[1]:+.3f}", (max(r[1] + r[2], 0), yi), xytext=(6, 0), textcoords="offset points",
                         va="center", fontsize=9, color=INK)
-        _style(ax, f"{tag}Mean information coefficient by signal",
-               f"Spearman rank correlation of score with CAR[+1,+{H}], averaged over seasons; bars show 95% CI")
+        _style(ax, f"{'Demo data: ' if demo else ''}How well each score ranks the next {H} days' returns",
+               "Information coefficient (rank correlation), averaged over seasons; lines show the 95% confidence range")
         ax.grid(axis="y", visible=False)
         ax.grid(axis="x", color=GRID, linewidth=0.8)
         fig.tight_layout()

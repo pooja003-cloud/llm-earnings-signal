@@ -25,7 +25,7 @@ def _cfg(tmp_path, monkeypatch, post_n, provider="claude_code"):
 def test_caution_when_every_document_predates_cutoff(tmp_path, monkeypatch):
     text = report.build_section(_cfg(tmp_path, monkeypatch, post_n=0))
     assert "[!CAUTION]" in text and "2026-06-30" in text
-    assert "none: all documents predate the cutoff" in text
+    assert "none: every report is older than the cutoff" in text
 
 
 def test_note_when_some_documents_are_after_cutoff(tmp_path, monkeypatch):

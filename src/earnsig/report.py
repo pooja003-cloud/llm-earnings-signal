@@ -24,36 +24,46 @@ def _num(x, d=2, sign=False):
 def stats_table(s: pd.DataFrame, cols: list[str], H: int) -> str:
     g = lambda c, k: s.loc[c].get(k, np.nan)  # noqa: E731
     rows = [
-        ("Documents with a score", lambda c: f"{int(g(c, 'n_events')):,}"),
-        (f"Mean IC (Spearman vs. CAR[+1,+{H}])", lambda c: _num(g(c, "mean_ic"), 3, True)),
-        ("IC t-stat (across seasons)", lambda c: _num(g(c, "ic_t"))),
-        ("Seasons with positive IC", lambda c: f"{_pct(g(c, 'ic_pos_share'), 0)} of {int(g(c, 'seasons'))}"),
-        ("Hit rate (extreme quintiles)", lambda c: _pct(g(c, "hit_rate"))),
-        (f"Mean CAR, top / bottom quintile", lambda c: f"{_pct(g(c, 'top_q_car'), 2)} / {_pct(g(c, 'bottom_q_car'), 2)}"),
-        ("**Seasonal L/S, net:** annual return", lambda c: _pct(g(c, "seasonal_net_ann_return"))),
-        ("Annual volatility", lambda c: _pct(g(c, "seasonal_net_ann_vol"))),
-        ("Sharpe ratio, net (gross)", lambda c: f"{_num(g(c, 'seasonal_net_sharpe'))} ({_num(g(c, 'seasonal_gross_sharpe'))})"),
-        ("Max drawdown", lambda c: _pct(g(c, "seasonal_net_max_drawdown"))),
-        ("Turnover per rebalance (full swap = 400%)", lambda c: _pct(g(c, "seasonal_turnover"), 0)),
-        ("Holding periods with a gain", lambda c: _pct(g(c, "seasonal_periods_positive"), 0)),
-        (f"**Event-time L/S (days +1..+{H}), net:** Sharpe", lambda c: _num(g(c, "event_net_sharpe"))),
-        ("Max drawdown", lambda c: _pct(g(c, "event_net_max_drawdown"))),
-        ("**FF5 + momentum:** alpha, annual (t)", lambda c: f"{_pct(g(c, 'ff_alpha_ann'))} ({_num(g(c, 'ff_alpha_t'))})"),
-        ("Market beta", lambda c: _num(g(c, "ff_beta_Mkt-RF"), 2, True)),
-        ("SMB / HML / RMW / CMA", lambda c: " / ".join(_num(g(c, f"ff_beta_{f}"), 2, True) for f in ("SMB", "HML", "RMW", "CMA"))),
-        ("Momentum beta", lambda c: _num(g(c, "ff_beta_Mom"), 2, True)),
-        ("R² of factor regression", lambda c: _num(g(c, "ff_r2"))),
-        ("Pooled IC after LLM training cutoff (n)", lambda c: (
-            f"{_num(g(c, 'post_cutoff_pooled_ic'), 3, True)} ({int(g(c, 'post_cutoff_n'))})"
-            if g(c, "post_cutoff_n") > 0 else "none: all documents predate the cutoff")),
+        ("Reports with a score", lambda c: f"{int(g(c, 'n_events')):,}"),
+        (f"Information coefficient: rank correlation of score with the {H}-day return above the market",
+         lambda c: _num(g(c, "mean_ic"), 3, True)),
+        ("t-statistic of the information coefficient across seasons (about 2 or more = unlikely to be luck)",
+         lambda c: _num(g(c, "ic_t"))),
+        ("Earnings seasons where the correlation was positive",
+         lambda c: f"{_pct(g(c, 'ic_pos_share'), 0)} of {int(g(c, 'seasons'))}"),
+        ("Hit rate: top and bottom fifth that moved the predicted way", lambda c: _pct(g(c, "hit_rate"))),
+        (f"Average {H}-day return above the market, most upbeat fifth / most gloomy fifth",
+         lambda c: f"{_pct(g(c, 'top_q_car'), 2)} / {_pct(g(c, 'bottom_q_car'), 2)}"),
+        ("**Long/short portfolio, rebalanced each season, after costs:** yearly return",
+         lambda c: _pct(g(c, "seasonal_net_ann_return"))),
+        ("Yearly volatility (typical size of ups and downs)", lambda c: _pct(g(c, "seasonal_net_ann_vol"))),
+        ("Sharpe ratio (return per unit of risk), after costs (before costs)",
+         lambda c: f"{_num(g(c, 'seasonal_net_sharpe'))} ({_num(g(c, 'seasonal_gross_sharpe'))})"),
+        ("Maximum drawdown (worst fall from a peak)", lambda c: _pct(g(c, "seasonal_net_max_drawdown"))),
+        ("Turnover per rebalance (replacing every holding = 400%)", lambda c: _pct(g(c, "seasonal_turnover"), 0)),
+        ("Holding periods that made money", lambda c: _pct(g(c, "seasonal_periods_positive"), 0)),
+        (f"**Long/short portfolio, each report held {H} trading days, after costs:** Sharpe ratio",
+         lambda c: _num(g(c, "event_net_sharpe"))),
+        ("Maximum drawdown", lambda c: _pct(g(c, "event_net_max_drawdown"))),
+        ("**Fama-French five factors plus momentum:** alpha, yearly return not explained by the factors "
+         "(t-statistic)", lambda c: f"{_pct(g(c, 'ff_alpha_ann'))} ({_num(g(c, 'ff_alpha_t'))})"),
+        ("Market beta (sensitivity to the overall stock market)", lambda c: _num(g(c, "ff_beta_Mkt-RF"), 2, True)),
+        ("Size / value / profitability / investment betas",
+         lambda c: " / ".join(_num(g(c, f"ff_beta_{f}"), 2, True) for f in ("SMB", "HML", "RMW", "CMA"))),
+        ("Momentum beta (tendency to hold recent winners)", lambda c: _num(g(c, "ff_beta_Mom"), 2, True)),
+        ("R-squared (share of the ups and downs explained by the factors)", lambda c: _num(g(c, "ff_r2"))),
+        ("Information coefficient using only reports after the model's training cutoff (number of reports)",
+         lambda c: (f"{_num(g(c, 'post_cutoff_pooled_ic'), 3, True)} ({int(g(c, 'post_cutoff_n'))})"
+                    if g(c, "post_cutoff_n") > 0 else "none: every report is older than the cutoff")),
     ]
-    head = "| Metric | " + " | ".join(LABELS.get(c, c) for c in cols) + " |\n|---|" + "---:|" * len(cols)
+    head = "| Measure | " + " | ".join(LABELS.get(c, c) for c in cols) + " |\n|---|" + "---:|" * len(cols)
     body = "\n".join(f"| {name} | " + " | ".join(fn(c) for c in cols) + " |" for name, fn in rows)
     return head + "\n" + body
 
 
 def topic_table(s: pd.DataFrame, topics: list[str]) -> str:
-    lines = ["| Signal | Mean IC | IC t-stat | Hit rate | Seasonal L/S Sharpe (net) | Event-time L/S Sharpe (net) |",
+    lines = ["| Score | Information coefficient | t-statistic | Hit rate | Sharpe ratio, seasonal portfolio | "
+             "Sharpe ratio, 20-day portfolio |",
              "|---|---:|---:|---:|---:|---:|"]
     for t in topics:
         if t in s.index:
@@ -65,12 +75,14 @@ def topic_table(s: pd.DataFrame, topics: list[str]) -> str:
 
 
 def consistency_table(c: dict) -> str:
-    lines = [f"Scored {c['n']} documents twice with identical inputs.", "",
-             "| Score | Exact agreement | Within ±1 | Spearman | Weighted kappa |", "|---|---:|---:|---:|---:|"]
+    lines = [f"The same {c['n']} reports were scored twice with identical inputs.", "",
+             "| Score | Same score both times | Within one step | Rank correlation | "
+             "Agreement beyond chance (weighted kappa, 1 = perfect) |",
+             "|---|---:|---:|---:|---:|"]
     for k in ("guidance_tone", "overall_tone", "margins_tone", "demand_tone"):
         v = c[k]
-        lines.append(f"| {k.replace('_', ' ')} | {_pct(v['exact_agreement'], 0)} | {_pct(v['within_one'], 0)} | "
-                     f"{_num(v['spearman'])} | {_num(v['weighted_kappa'])} |")
+        lines.append(f"| {k.replace('_', ' ').capitalize()} | {_pct(v['exact_agreement'], 0)} | "
+                     f"{_pct(v['within_one'], 0)} | {_num(v['spearman'])} | {_num(v['weighted_kappa'])} |")
     return "\n".join(lines)
 
 
@@ -92,28 +104,32 @@ def build_section(cfg: dict) -> str:
     post_n = int(s.loc[prim, "post_cutoff_n"]) if prim in s.index else 0
     if not demo and post_n == 0:
         parts += ["> [!CAUTION]",
-                  f"> **Every document in this sample predates the scorer's training cutoff "
+                  f"> **Every report in this sample is older than the language model's training cutoff "
                   f"({meta['training_cutoff']}).** The model may have read news about how these stocks moved",
-                  "> after each release, so a positive result here can reflect memory rather than reading skill.",
-                  "> Treat it as an upper bound. A clean test needs a model trained before the sample period",
-                  "> (see *Biases* below).", ""]
+                  "> after each report, so a good result here can come from memory rather than reading skill.",
+                  "> Treat it as a best case. A clean test needs a model trained before the reports were published",
+                  "> (see *Biases and limitations* below).", ""]
     elif not demo and post_n < meta["n_events"]:
-        parts += [f"> [!NOTE]\n> {meta['n_events'] - post_n} of {meta['n_events']} documents predate the scorer's "
+        parts += [f"> [!NOTE]\n> {meta['n_events'] - post_n} of {meta['n_events']} reports are older than the language model's "
                   f"training cutoff ({meta['training_cutoff']}); the last row of the table uses only the {post_n} after it.", ""]
-    parts += [f"_Sample: {meta['n_events']:,} documents, {meta['n_tickers']} stocks, {meta['first_event']} to "
-              f"{meta['last_event']}. Scorer: `{meta['model']}`. Abnormal returns vs. {meta['benchmark']} benchmark. "
-              f"Costs: {meta['cost_bps']} bps one-way + {meta['borrow_bps']} bps/yr borrow._", "",
-              f"![Cumulative return of the long/short portfolio]({rel}/figures/cumulative_long_short.png)", "",
-              "### Summary statistics", "", stats_table(s, cols, H), ""]
+    bench = "the S&P 500 index fund (SPY)" if meta["benchmark"] == "market" else "each stock's sector fund"
+    parts += [f"_Sample: {meta['n_events']:,} earnings reports from {meta['n_tickers']} companies, "
+              f"{meta['first_event']} to {meta['last_event']}. Scored by: {meta['model']}. "
+              f"Returns are measured above {bench}. Trading costs: {meta['cost_bps'] / 100:.2f}% per trade "
+              f"plus {meta['borrow_bps'] / 100:.2f}% a year to borrow shares for selling short._", "",
+              f"![Growth of $1 in the long/short portfolios]({rel}/figures/cumulative_long_short.png)", "",
+              "### All measures", "", stats_table(s, cols, H), ""]
     if not meta.get("has_factors"):
-        parts += ["_Factor rows are empty: run `earnsig factors` to download Fama-French data._", ""]
-    parts += [f"![Drift by quintile]({rel}/figures/car_by_quintile.png)", "",
-              "### Which topic matters most? (stretch goal)", "",
+        parts += ["_Factor rows are empty: run `earnsig factors` to download the Fama-French factor data._", ""]
+    parts += [f"![Return after the report, by tone group]({rel}/figures/car_by_quintile.png)", "",
+              "### Which topic matters most?", "",
+              "Each report also got separate scores for what management said about future guidance, profit "
+              "margins and customer demand.", "",
               topic_table(s, [prim, *cfg["signals"].get("topics", []), base]), "",
-              f"![IC by signal]({rel}/figures/ic_by_signal.png)", ""]
+              f"![Information coefficient by score]({rel}/figures/ic_by_signal.png)", ""]
     cons = rd / "consistency.json"
     if cons.exists():
-        parts += ["### Scoring consistency (same document, scored twice)", "",
+        parts += ["### Does the model give the same answer twice?", "",
                   consistency_table(json.loads(cons.read_text())), ""]
     parts += [END]
     return "\n".join(parts)
