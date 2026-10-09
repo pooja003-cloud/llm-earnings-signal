@@ -1,51 +1,51 @@
-ticker,name,sector,sector_etf
-AAPL,Apple,Technology,XLK
-MSFT,Microsoft,Technology,XLK
-NVDA,NVIDIA,Technology,XLK
-ORCL,Oracle,Technology,XLK
-CSCO,Cisco,Technology,XLK
-ADBE,Adobe,Technology,XLK
-INTC,Intel,Technology,XLK
-GOOGL,Alphabet,Communication Services,XLC
-META,Meta Platforms,Communication Services,XLC
-NFLX,Netflix,Communication Services,XLC
-VZ,Verizon,Communication Services,XLC
-AMZN,Amazon,Consumer Discretionary,XLY
-HD,Home Depot,Consumer Discretionary,XLY
-MCD,McDonald's,Consumer Discretionary,XLY
-NKE,Nike,Consumer Discretionary,XLY
-SBUX,Starbucks,Consumer Discretionary,XLY
-PG,Procter & Gamble,Consumer Staples,XLP
-KO,Coca-Cola,Consumer Staples,XLP
-PEP,PepsiCo,Consumer Staples,XLP
-WMT,Walmart,Consumer Staples,XLP
-COST,Costco,Consumer Staples,XLP
-JNJ,Johnson & Johnson,Health Care,XLV
-UNH,UnitedHealth,Health Care,XLV
-PFE,Pfizer,Health Care,XLV
-MRK,Merck,Health Care,XLV
-ABBV,AbbVie,Health Care,XLV
-LLY,Eli Lilly,Health Care,XLV
-JPM,JPMorgan Chase,Financials,XLF
-BAC,Bank of America,Financials,XLF
-WFC,Wells Fargo,Financials,XLF
-GS,Goldman Sachs,Financials,XLF
-MS,Morgan Stanley,Financials,XLF
-AXP,American Express,Financials,XLF
-CAT,Caterpillar,Industrials,XLI
-DE,Deere,Industrials,XLI
-HON,Honeywell,Industrials,XLI
-UNP,Union Pacific,Industrials,XLI
-UPS,United Parcel Service,Industrials,XLI
-LMT,Lockheed Martin,Industrials,XLI
-XOM,Exxon Mobil,Energy,XLE
-CVX,Chevron,Energy,XLE
-COP,ConocoPhillips,Energy,XLE
-SLB,Schlumberger,Energy,XLE
-NEE,NextEra Energy,Utilities,XLU
-DUK,Duke Energy,Utilities,XLU
-LIN,Linde,Materials,XLB
-SHW,Sherwin-Williams,Materials,XLB
-FCX,Freeport-McMoRan,Materials,XLB
-PLD,Prologis,Real Estate,XLRE
-AMT,American Tower,Real Estate,XLRE
+ticker,name,sector,sector_etf,cik
+AAPL,Apple,Technology,XLK,
+MSFT,Microsoft,Technology,XLK,
+NVDA,NVIDIA,Technology,XLK,
+ORCL,Oracle,Technology,XLK,
+CSCO,Cisco,Technology,XLK,
+ADBE,Adobe,Technology,XLK,
+INTC,Intel,Technology,XLK,
+GOOGL,Alphabet,Communication Services,XLC,
+META,Meta Platforms,Communication Services,XLC,
+NFLX,Netflix,Communication Services,XLC,
+VZ,Verizon,Communication Services,XLC,
+AMZN,Amazon,Consumer Discretionary,XLY,
+HD,Home Depot,Consumer Discretionary,XLY,
+MCD,McDonald's,Consumer Discretionary,XLY,
+NKE,Nike,Consumer Discretionary,XLY,
+SBUX,Starbucks,Consumer Discretionary,XLY,
+PG,Procter & Gamble,Consumer Staples,XLP,
+KO,Coca-Cola,Consumer Staples,XLP,
+PEP,PepsiCo,Consumer Staples,XLP,
+WMT,Walmart,Consumer Staples,XLP,
+COST,Costco,Consumer Staples,XLP,
+JNJ,Johnson & Johnson,Health Care,XLV,
+UNH,UnitedHealth,Health Care,XLV,
+PFE,Pfizer,Health Care,XLV,
+MRK,Merck,Health Care,XLV,
+ABBV,AbbVie,Health Care,XLV,
+LLY,Eli Lilly,Health Care,XLV,
+JPM,JPMorgan Chase,Financials,XLF,
+BAC,Bank of America,Financials,XLF,
+WFC,Wells Fargo,Financials,XLF,
+GS,Goldman Sachs,Financials,XLF,
+MS,Morgan Stanley,Financials,XLF,
+AXP,American Express,Financials,XLF,
+CAT,Caterpillar,Industrials,XLI,
+DE,Deere,Industrials,XLI,
+HON,Honeywell,Industrials,XLI,
+UNP,Union Pacific,Industrials,XLI,
+UPS,United Parcel Service,Industrials,XLI,
+LMT,Lockheed Martin,Industrials,XLI,
+XOM,Exxon Mobil,Energy,XLE,34088
+CVX,Chevron,Energy,XLE,
+COP,ConocoPhillips,Energy,XLE,
+SLB,Schlumberger,Energy,XLE,
+NEE,NextEra Energy,Utilities,XLU,
+DUK,Duke Energy,Utilities,XLU,
+LIN,Linde,Materials,XLB,
+SHW,Sherwin-Williams,Materials,XLB,
+FCX,Freeport-McMoRan,Materials,XLB,
+PLD,Prologis,Real Estate,XLRE,
+AMT,American Tower,Real Estate,XLRE,

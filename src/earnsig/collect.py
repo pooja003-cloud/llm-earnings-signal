@@ -128,12 +128,17 @@ def collect_sec(cfg: dict, universe: pd.DataFrame, tickers: list[str] | None = N
     paths = cfg["paths"]
     client = SecClient(cfg["sec"]["user_agent"], cfg["sec"].get("requests_per_second", 8))
     cik_map = ticker_to_cik(client)
+    # optional `cik` column in universe.csv pins a company number, e.g. when a company
+    # reorganized under a new parent and the ticker now maps to a CIK with no history
+    pinned = {}
+    if "cik" in universe.columns:
+        pinned = {t: int(c) for t, c in zip(universe["ticker"], universe["cik"]) if pd.notna(c) and str(c).strip()}
     start, end = pd.Timestamp(cfg["start_date"]), pd.Timestamp(cfg["end_date"])
     existing = _read_events(paths.events)
     done = set(existing["event_id"]) if len(existing) else set()
     rows = []
     for ticker in tickers or universe["ticker"].tolist():
-        cik = cik_map.get(ticker.replace(".", "-")) or cik_map.get(ticker)
+        cik = pinned.get(ticker) or cik_map.get(ticker.replace(".", "-")) or cik_map.get(ticker)
         if cik is None:
             log.warning("No CIK for %s, skipping", ticker)
             continue
@@ -141,6 +146,9 @@ def collect_sec(cfg: dict, universe: pd.DataFrame, tickers: list[str] | None = N
         f = f[(f["form"] == "8-K") & f["items"].fillna("").str.contains(r"\b2\.02\b")]
         f = f[(pd.to_datetime(f["filingDate"]) >= start) & (pd.to_datetime(f["filingDate"]) <= end)]
         log.info("%s: %d earnings 8-Ks", ticker, len(f))
+        if len(f) == 0:
+            log.warning("%s: no earnings 8-Ks under CIK %d. If the company reorganized or changed its "
+                        "SEC registrant, add its old CIK in a `cik` column of universe.csv.", ticker, cik)
         for _, fil in f.iterrows():
             acc = fil["accessionNumber"]
             event_id = f"{ticker}_{acc}"
