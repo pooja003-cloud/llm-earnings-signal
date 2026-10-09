@@ -43,7 +43,9 @@ def stats_table(s: pd.DataFrame, cols: list[str], H: int) -> str:
         ("SMB / HML / RMW / CMA", lambda c: " / ".join(_num(g(c, f"ff_beta_{f}"), 2, True) for f in ("SMB", "HML", "RMW", "CMA"))),
         ("Momentum beta", lambda c: _num(g(c, "ff_beta_Mom"), 2, True)),
         ("R² of factor regression", lambda c: _num(g(c, "ff_r2"))),
-        ("Pooled IC after LLM training cutoff (n)", lambda c: f"{_num(g(c, 'post_cutoff_pooled_ic'), 3, True)} ({int(g(c, 'post_cutoff_n'))})"),
+        ("Pooled IC after LLM training cutoff (n)", lambda c: (
+            f"{_num(g(c, 'post_cutoff_pooled_ic'), 3, True)} ({int(g(c, 'post_cutoff_n'))})"
+            if g(c, "post_cutoff_n") > 0 else "none: all documents predate the cutoff")),
     ]
     head = "| Metric | " + " | ".join(LABELS.get(c, c) for c in cols) + " |\n|---|" + "---:|" * len(cols)
     body = "\n".join(f"| {name} | " + " | ".join(fn(c) for c in cols) + " |" for name, fn in rows)
@@ -87,6 +89,17 @@ def build_section(cfg: dict) -> str:
                   "> **These numbers come from the synthetic demo** (`earnsig demo`): fake prices, fake documents and a",
                   "> mock scorer that peeks at a planted signal. They show what the report looks like and prove the",
                   "> plumbing works. They say nothing about real markets. Run the real pipeline to replace this section.", ""]
+    post_n = int(s.loc[prim, "post_cutoff_n"]) if prim in s.index else 0
+    if not demo and post_n == 0:
+        parts += ["> [!CAUTION]",
+                  f"> **Every document in this sample predates the scorer's training cutoff "
+                  f"({meta['training_cutoff']}).** The model may have read news about how these stocks moved",
+                  "> after each release, so a positive result here can reflect memory rather than reading skill.",
+                  "> Treat it as an upper bound. A clean test needs a model trained before the sample period",
+                  "> (see *Biases* below).", ""]
+    elif not demo and post_n < meta["n_events"]:
+        parts += [f"> [!NOTE]\n> {meta['n_events'] - post_n} of {meta['n_events']} documents predate the scorer's "
+                  f"training cutoff ({meta['training_cutoff']}); the last row of the table uses only the {post_n} after it.", ""]
     parts += [f"_Sample: {meta['n_events']:,} documents, {meta['n_tickers']} stocks, {meta['first_event']} to "
               f"{meta['last_event']}. Scorer: `{meta['model']}`. Abnormal returns vs. {meta['benchmark']} benchmark. "
               f"Costs: {meta['cost_bps']} bps one-way + {meta['borrow_bps']} bps/yr borrow._", "",

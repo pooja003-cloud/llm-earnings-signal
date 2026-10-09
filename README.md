@@ -264,6 +264,14 @@ the model's training cutoff, reported separately as **post-cutoff IC**. With a
 recent model that window may be short and the sample small. Treat pre-cutoff
 results as an upper bound, not evidence.
 
+In this run the problem is total: Claude Haiku 5.5's training data runs to June
+2026 and every release in the sample is from July 2023 to December 2025, so
+there is no post-cutoff window at all. The free way to get one is to score the
+same releases with an older local model through Ollama: Llama 3.1's training
+data ends in December 2023, so almost all of the sample is unseen by it. If
+its signal holds up, the effect is more likely to be reading skill; if it
+vanishes, memorization is the likelier explanation.
+
 **Small sample, noisy statistics.** 50 stocks × ~10 quarters is ~520
 documents and only ~10 seasonal rebalances. A Sharpe ratio estimated from 2.5
 years has a standard error near 0.6, and season-level IC t-stats rest on ~10

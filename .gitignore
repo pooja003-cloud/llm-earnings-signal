@@ -4,6 +4,9 @@
 # downloaded / generated data (re-create with the pipeline)
 data/
 
+# downloaded update archives
+*.zip
+
 # python
 __pycache__/
 *.py[cod]

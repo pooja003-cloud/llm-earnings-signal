@@ -31,9 +31,10 @@ llm:
   prompt_version: v1                # bump when you change the prompt (invalidates cache)
   # Events dated before this are "in-sample" for the LLM: it may have read about
   # the subsequent stock moves during training. Set it to the published training
-  # cutoff of the model you use (e.g. "2023-12-31" for Llama 3.1). Results are
-  # reported separately after this date.
-  training_cutoff: "2025-02-01"
+  # cutoff of the model you use. Results are reported separately after this date.
+  #   Claude Haiku 5.5 (the `haiku` alias in Claude Code): June 2026
+  #   Llama 3.1 (ollama llama3.1:8b): December 2023
+  training_cutoff: "2026-06-30"
   consistency_sample: 40            # documents scored twice to test reliability
 
 event:
