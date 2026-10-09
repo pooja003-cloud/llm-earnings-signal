@@ -200,7 +200,7 @@ short leg (both configurable).
 ## Quick start
 
 ```bash
-git clone https://github.com/<you>/llm-earnings-signal && cd llm-earnings-signal
+git clone https://github.com/pooja003-cloud/llm-earnings-signal && cd llm-earnings-signal
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 pytest -q                      # 40 tests, ~3 s
