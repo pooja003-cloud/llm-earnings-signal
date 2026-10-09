@@ -126,6 +126,99 @@ class AnthropicScorer:
         return out
 
 
+class UsageLimitReached(RuntimeError):
+    """The subscription's usage limit is exhausted; stop and resume later from the cache."""
+
+
+class ClaudeCodeScorer:
+    """Score through the Claude Code CLI (``claude -p``) using a Claude Pro/Max login.
+
+    No API key needed: run ``claude`` once and sign in with your subscription.
+    Usage counts against the same limits as the Claude apps, so a full run may
+    take several limit windows. When the limit is hit, scoring stops cleanly;
+    re-run ``earnsig score`` later and it resumes from the cache.
+    """
+
+    def __init__(self, model: str = "haiku", system_prompt_path=None, timeout: int = 300):
+        import shutil
+
+        self.exe = shutil.which("claude")
+        if self.exe is None:
+            raise RuntimeError("`claude` not found. Install Claude Code (https://code.claude.com) and run "
+                               "`claude` once to sign in with your Pro account.")
+        self.cli_model = model
+        self.model = f"claude-code:{model}"
+        self.timeout = timeout
+        self.prompt_file = system_prompt_path
+        self.prompt_file.parent.mkdir(parents=True, exist_ok=True)
+        self.prompt_file.write_text(SYSTEM_PROMPT)
+
+    def command(self) -> list[str]:
+        return [self.exe, "-p", "--output-format", "json", "--json-schema", json.dumps(SCHEMA),
+                "--model", self.cli_model, "--system-prompt-file", str(self.prompt_file),
+                "--tools", "", "--strict-mcp-config", "--disable-slash-commands",
+                "--no-session-persistence", "--max-turns", "3"]
+
+    def score(self, text: str, row: pd.Series | None = None) -> dict:
+        import subprocess
+
+        proc = subprocess.run(self.command(), input=USER_TEMPLATE.format(text=text),
+                              capture_output=True, text=True, timeout=self.timeout)
+        try:
+            out = json.loads(proc.stdout)
+        except json.JSONDecodeError:
+            msg = (proc.stdout + proc.stderr).strip()[:300]
+            if "limit" in msg.lower():
+                raise UsageLimitReached(msg)
+            raise RuntimeError(f"claude exited {proc.returncode}: {msg}")
+        if out.get("is_error") or not out.get("structured_output"):
+            msg = str(out.get("result", ""))[:300]
+            if "limit" in msg.lower() or out.get("subtype") == "error_rate_limit":
+                raise UsageLimitReached(msg)
+            raise RuntimeError(f"claude returned no structured output: {msg}")
+        res = validate(out["structured_output"])
+        usage = out.get("usage") or {}
+        res["input_tokens"] = sum(usage.get(k) or 0 for k in
+                                  ("input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"))
+        res["output_tokens"] = usage.get("output_tokens")
+        return res
+
+
+class OllamaScorer:
+    """Score with a free local model through Ollama (https://ollama.com).
+
+    Ollama constrains the output to the JSON schema. A model with an old,
+    published training cutoff (e.g. Llama 3.1: December 2023) gives a cleaner
+    out-of-sample test: it cannot have read about 2024-2025 stock moves.
+    """
+
+    def __init__(self, model: str = "llama3.1:8b", url: str = "http://localhost:11434",
+                 num_ctx: int = 16384, timeout: int = 600):
+        self.ollama_model = model
+        self.model = f"ollama:{model}"
+        self.url = url.rstrip("/")
+        self.num_ctx = num_ctx
+        self.timeout = timeout
+
+    def score(self, text: str, row: pd.Series | None = None) -> dict:
+        import requests
+
+        r = requests.post(f"{self.url}/api/chat", timeout=self.timeout, json={
+            "model": self.ollama_model,
+            "messages": [{"role": "system", "content": SYSTEM_PROMPT},
+                         {"role": "user", "content": USER_TEMPLATE.format(text=text)}],
+            "format": SCHEMA,
+            "stream": False,
+            "options": {"temperature": 0, "num_ctx": self.num_ctx},
+        })
+        r.raise_for_status()
+        body = r.json()
+        res = validate(json.loads(body["message"]["content"]))
+        res["input_tokens"] = body.get("prompt_eval_count")
+        res["output_tokens"] = body.get("eval_count")
+        return res
+
+
 class MockScorer:
     """Offline stand-in used only by the synthetic demo.
 
@@ -162,13 +255,26 @@ class MockScorer:
         }
 
 
+def scorer_label(cfg: dict) -> str:
+    llm = cfg["llm"]
+    return {"claude_code": f"Claude Code ({llm.get('claude_code_model', 'haiku')})",
+            "ollama": f"Ollama {llm.get('ollama_model', '')}",
+            }.get(llm["provider"], llm["model"])
+
+
 def make_scorer(cfg: dict):
     llm = cfg["llm"]
     if llm["provider"] == "mock":
         return MockScorer()
+    if llm["provider"] == "claude_code":
+        return ClaudeCodeScorer(llm.get("claude_code_model", "haiku"),
+                                cfg["paths"].data / "prompts" / "system_prompt.txt")
+    if llm["provider"] == "ollama":
+        return OllamaScorer(llm.get("ollama_model", "llama3.1:8b"), llm.get("ollama_url", "http://localhost:11434"),
+                            llm.get("ollama_num_ctx", 16384))
     if llm["provider"] == "anthropic":
         return AnthropicScorer(llm["model"], llm.get("max_tokens", 600))
-    raise ValueError(f"unknown provider {llm['provider']}")
+    raise ValueError(f"unknown provider {llm['provider']} (use claude_code, ollama, anthropic or mock)")
 
 
 # ---------------------------------------------------------------- caching + batch scoring
@@ -198,7 +304,11 @@ def score_events(cfg: dict, events: pd.DataFrame, scorer, rep: int = 1,
             if _key(r["event_id"], scorer.model, llm["prompt_version"], rep) not in cache]
     log.info("LLM scoring rep %d: %d cached, %d to score", rep, len(events) - len(todo), len(todo))
 
+    stop = threading.Event()
+
     def work(row):
+        if stop.is_set():
+            return
         text = load_text(cfg, row["path"])[: llm["max_chars"]]
         if llm.get("anonymize", True):
             text = anonymize(text, row["ticker"], names.get(row["ticker"]))
@@ -217,6 +327,11 @@ def score_events(cfg: dict, events: pd.DataFrame, scorer, rep: int = 1,
         for i, fut in enumerate(as_completed(futures), 1):
             try:
                 fut.result()
+            except UsageLimitReached as e:
+                if not stop.is_set():
+                    log.warning("Usage limit reached (%s). Stopping; run the same command again after "
+                                "your limit resets and it will continue where it left off.", e)
+                stop.set()
             except Exception as e:  # keep going; report at the end
                 failures += 1
                 log.warning("score failed for %s: %s", futures[fut], e)
@@ -224,6 +339,9 @@ def score_events(cfg: dict, events: pd.DataFrame, scorer, rep: int = 1,
                 log.info("  %d / %d", i, len(todo))
     if failures:
         log.warning("%d documents failed to score (re-run to retry)", failures)
+    if stop.is_set():
+        log.warning("Scored %d of %d documents so far.", sum(
+            _key(e, scorer.model, llm["prompt_version"], rep) in cache for e in events["event_id"]), len(events))
 
     recs = [cache[k] for k in (_key(e, scorer.model, llm["prompt_version"], rep) for e in events["event_id"]) if k in cache]
     return pd.DataFrame(recs)

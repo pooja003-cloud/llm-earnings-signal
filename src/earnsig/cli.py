@@ -47,8 +47,13 @@ def cmd_score(cfg, a):
     ev = _events(cfg, a.limit)
     if a.dry_run:
         chars = sum(min(len((cfg["paths"].data / p).read_text()), cfg["llm"]["max_chars"]) for p in ev["path"])
-        print(f"{len(ev)} documents, ~{chars / 4 / 1e6:.2f}M input tokens (+~1k prompt tokens each). "
-              f"Check current pricing for {cfg['llm']['model']} before running.")
+        print(f"{len(ev)} documents, ~{chars / 4 / 1e6:.2f}M input tokens (+~1k prompt tokens each).")
+        prov = cfg["llm"]["provider"]
+        if prov == "claude_code":
+            print("Claude Code: this counts against your Pro usage limits. Scoring stops when you hit a limit; "
+                  "re-run later to resume. Try `earnsig score --limit 20` first.")
+        elif prov == "anthropic":
+            print(f"Check current API pricing for {cfg['llm']['model']} before running.")
         return
     raw = score_events(cfg, ev, make_scorer(cfg), rep=1, universe=load_universe(cfg))
     sig = build_llm_signals(raw, ev)

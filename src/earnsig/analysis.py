@@ -10,6 +10,7 @@ import pandas as pd
 from . import metrics as M
 from .config import load_universe
 from .events import event_study, returns_from_prices
+from .llm_score import scorer_label
 from .market_data import load_factors, load_prices
 from .portfolio import event_time_long_short, seasonal_long_short
 
@@ -95,7 +96,7 @@ def run_backtest(cfg: dict) -> dict:
     ev[cols].to_csv(res_dir / "events_scored.csv", index=False)
     meta = {"n_events": int(len(ev)), "n_tickers": int(ev["ticker"].nunique()),
             "first_event": str(ev["t0"].min().date()), "last_event": str(ev["t0"].max().date()),
-            "provider": cfg["llm"]["provider"], "model": cfg["llm"]["model"],
+            "provider": cfg["llm"]["provider"], "model": scorer_label(cfg),
             "benchmark": cfg["event"]["benchmark"], "hold_days": cfg["event"]["hold_days"],
             "cost_bps": cfg["portfolio"]["cost_bps"], "borrow_bps": cfg["portfolio"]["borrow_bps_annual"],
             "training_cutoff": cfg["llm"]["training_cutoff"], "has_factors": factors is not None}

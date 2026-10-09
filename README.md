@@ -123,6 +123,27 @@ response is cached to `data/llm_cache.jsonl`, so re-runs are free and every
 score is auditable. `earnsig consistency` re-scores a random sample and reports
 exact agreement, within-one agreement, Spearman and quadratic-weighted kappa.
 
+**No API key needed.** Pick the scoring backend with `llm.provider` in
+[`config/config.yaml`](config/config.yaml):
+
+| Provider | What you need | Cost |
+|---|---|---|
+| `claude_code` (default) | [Claude Code](https://code.claude.com) installed and signed in with a Claude Pro or Max plan | Included in the plan; uses your normal usage limits |
+| `ollama` | [Ollama](https://ollama.com) and a pulled model, e.g. `ollama pull llama3.1:8b` (about 5 GB; 16 GB RAM recommended) | Free, runs on your computer |
+| `anthropic` | An API key from the Claude Console | Pay per token (optional, not needed) |
+
+With `claude_code`, each document is one `claude -p` call with no tools, a
+replaced system prompt and `--json-schema`. ~1,600 releases will not fit in one
+usage window: when the limit is hit, scoring stops cleanly, and running
+`earnsig score` again after the reset picks up where it left off. Haiku uses
+the least of your allowance.
+
+With `ollama`, a model with an old, published training cutoff is a feature:
+Llama 3.1's data ends in December 2023, so every 2024-2025 event is genuinely
+out of sample for it (set `training_cutoff: "2023-12-31"`). Small local models
+read less accurately than Claude, so running both and comparing is a good
+experiment in itself.
+
 Signal used for trading (`llm`): the guidance score, with the other three
 scores averaged and added at 0.1x as a tie-breaker, because five integer levels
 tie heavily and quintiles need an order. `llm_delta` is the change in guidance
@@ -181,21 +202,22 @@ short leg (both configurable).
 git clone https://github.com/<you>/llm-earnings-signal && cd llm-earnings-signal
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
-pytest -q                      # 34 tests, ~3 s
+pytest -q                      # 40 tests, ~3 s
 
 earnsig demo --readme          # offline, synthetic data, ~20 s
 ```
 
-Real run:
+Real run (everything here is free; no API key):
 
 ```bash
-cp .env.example .env           # add ANTHROPIC_API_KEY and SEC_USER_AGENT
+cp .env.example .env           # set SEC_USER_AGENT="Your Name you@email.com"
+claude                         # once: sign in with your Claude Pro account, then exit
 earnsig prices                 # yfinance, adjusted closes
 earnsig factors                # Ken French data library
 earnsig collect                # ~80 tickers x ~20 quarters of 8-Ks (≈ 20-30 min at SEC's rate limit)
-earnsig score --dry-run        # token estimate before you spend money
+earnsig score --dry-run        # how many documents and tokens
 earnsig score --limit 20       # try a few first, read data/llm_cache.jsonl
-earnsig score
+earnsig score                  # re-run after each usage reset until all are scored
 earnsig consistency            # re-score 40 documents
 earnsig baseline
 earnsig backtest
@@ -205,9 +227,9 @@ earnsig report                 # rewrites the Results section above
 Or `make all`. Settings live in [`config/config.yaml`](config/config.yaml):
 model, sample period, benchmark, holding window, costs, rebalance months and
 the model's **training cutoff**, which you should set to the published cutoff
-of whichever model you use. For ~1,600 press releases the Message Batches API
-would cut LLM cost roughly in half; it is not wired in here to keep the code
-simple.
+of whichever model you use. To shrink the job, cut the universe in
+`config/universe.csv` or shorten the date range; 50 stocks over 3 years is
+about 600 documents.
 
 ## Repository layout
 
