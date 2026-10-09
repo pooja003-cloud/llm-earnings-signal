@@ -5,7 +5,7 @@ earnings release is public, does an LLM's reading of management's tone predict
 the stock's abnormal return over the next 20 trading days**, and does it beat a
 classic finance dictionary (Loughran-McDonald)?
 
-The pipeline pulls 8-K earnings press releases from SEC EDGAR for ~80 large US
+The pipeline pulls 8-K earnings press releases from SEC EDGAR for 50 large US
 stocks (2021-2025), has an LLM score each one on a fixed -2..+2 rubric with
 JSON-schema output, measures post-announcement abnormal returns, and trades a
 quintile long/short portfolio rebalanced after each earnings season.
@@ -133,7 +133,7 @@ exact agreement, within-one agreement, Spearman and quadratic-weighted kappa.
 | `anthropic` | An API key from the Claude Console | Pay per token (optional, not needed) |
 
 With `claude_code`, each document is one `claude -p` call with no tools, a
-replaced system prompt and `--json-schema`. ~1,600 releases will not fit in one
+replaced system prompt and `--json-schema`. ~1,000 releases will not fit in one
 usage window: when the limit is hit, scoring stops cleanly, and running
 `earnsig score` again after the reset picks up where it left off. Haiku uses
 the least of your allowance.
@@ -214,7 +214,7 @@ cp .env.example .env           # set SEC_USER_AGENT="Your Name you@email.com"
 claude                         # once: sign in with your Claude Pro account, then exit
 earnsig prices                 # yfinance, adjusted closes
 earnsig factors                # Ken French data library
-earnsig collect                # ~80 tickers x ~20 quarters of 8-Ks (≈ 20-30 min at SEC's rate limit)
+earnsig collect                # 50 tickers x ~20 quarters of 8-Ks (≈ 15-20 min at SEC's rate limit)
 earnsig score --dry-run        # how many documents and tokens
 earnsig score --limit 20       # try a few first, read data/llm_cache.jsonl
 earnsig score                  # re-run after each usage reset until all are scored
@@ -264,7 +264,7 @@ the model's training cutoff, reported separately as **post-cutoff IC**. With a
 recent model that window may be short and the sample small. Treat pre-cutoff
 results as an upper bound, not evidence.
 
-**Small sample, noisy statistics.** ~80 stocks × ~20 quarters is ~1,600
+**Small sample, noisy statistics.** 50 stocks × ~20 quarters is ~1,000
 documents and only ~20 seasonal rebalances. A Sharpe ratio estimated from five
 years has a standard error near 0.45, and season-level IC t-stats rest on ~20
 observations. On the synthetic demo, regenerating the same planted effect with
