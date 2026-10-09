@@ -84,6 +84,7 @@ def test_ollama_request_and_parse(monkeypatch):
     out = s.score("text")
     assert rec["url"].endswith("/api/chat")
     assert rec["body"]["format"] == SCHEMA and rec["body"]["options"]["temperature"] == 0
+    assert rec["body"]["options"]["num_predict"] == 400  # stops a looping answer
     assert out["demand_tone"] == -1 and s.model == "ollama:llama3.1:8b"
 
 
@@ -161,3 +162,14 @@ def test_ollama_not_running_or_model_missing(monkeypatch):
         OllamaScorer("llama3.2:3b")
     monkeypatch.setattr("requests.get", _ollama_tags(["llama3.2:3b"]))
     assert OllamaScorer("llama3.2:3b").model == "ollama:llama3.2:3b"
+
+
+def test_cut_off_reason_keeps_scores():
+    from earnsig.llm_score import parse_json_answer, validate
+
+    full = json.dumps(GOOD)
+    cut = full[:full.index('"reason"')] + '"reason": "The company withdrew its outlook because of very very very'
+    d = validate(parse_json_answer(cut))
+    assert d["guidance_tone"] == -2 and d["demand_tone"] == -1 and d["reason_truncated"] is True
+    with pytest.raises(json.JSONDecodeError):
+        parse_json_answer('{"guidance_tone": -2, "guid')  # cut before the scores are complete

@@ -100,6 +100,8 @@ def validate(d: dict) -> dict:
     for k in TOPICS:
         out[f"{k}_mentioned"] = bool(d[f"{k}_mentioned"])
     out["reason"] = str(d.get("reason", ""))[:300]
+    if d.get("reason_truncated"):
+        out["reason_truncated"] = True
     return out
 
 
@@ -197,7 +199,7 @@ class OllamaScorer:
     """
 
     def __init__(self, model: str = "llama3.1:8b", url: str = "http://localhost:11434",
-                 num_ctx: int = 16384, timeout: int = 600):
+                 num_ctx: int = 16384, timeout: int = 180):
         self.ollama_model = model
         self.model = f"ollama:{model}"
         self.url = url.rstrip("/")
@@ -230,15 +232,33 @@ class OllamaScorer:
                          {"role": "user", "content": USER_TEMPLATE.format(text=text)}],
             "format": SCHEMA,
             "stream": False,
-            "options": {"temperature": 0, "num_ctx": self.num_ctx},
+            "options": {"temperature": 0, "num_ctx": self.num_ctx, "num_predict": 400},  # cap: small models can loop on whitespace
         })
         r.raise_for_status()
         body = r.json()
-        res = validate(json.loads(body["message"]["content"]))
+        res = validate(parse_json_answer(body["message"]["content"]))
         res["model_id"] = f"{self.ollama_model} (digest {self.digest[:12]})" if self.digest else self.ollama_model
         res["input_tokens"] = body.get("prompt_eval_count")
         res["output_tokens"] = body.get("eval_count")
         return res
+
+
+def parse_json_answer(text: str) -> dict:
+    """Parse a model's JSON answer; rescue the scores if only the trailing reason was cut off.
+
+    The schema lists the scores before ``reason``, so when a small model rambles in the
+    reason and hits the length cap, every score is already complete.
+    """
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        i = text.find('"reason"')
+        if i <= 0:
+            raise
+        d = json.loads(text[:i].rstrip().rstrip(",") + "}")
+        d["reason"] = "(reason cut off at the length limit)"
+        d["reason_truncated"] = True
+        return d
 
 
 class MockScorer:
