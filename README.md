@@ -339,6 +339,12 @@ earnsig --config config/llama.yaml backtest     # results go to results/llama/
 earnsig --config config/llama.yaml compare      # adds the "Clean test" section to this page
 ```
 
+No suitable computer? The notebook
+[`notebooks/llama_clean_test_colab.ipynb`](notebooks/llama_clean_test_colab.ipynb)
+does the scoring on a free Google Colab machine with a graphics card in about
+half an hour ([open it in Colab](https://colab.research.google.com/github/pooja003-cloud/llm-earnings-signal/blob/main/notebooks/llama_clean_test_colab.ipynb));
+then run the last two commands above on your own computer.
+
 Or run everything with `make all`. All settings are in
 [`config/config.yaml`](config/config.yaml): the scoring model, the period
 studied (`analysis_start`, `end_date`), the comparison fund, the holding period,
