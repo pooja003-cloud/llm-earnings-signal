@@ -6,6 +6,7 @@ data/
 
 # downloaded update archives
 *.zip
+*.bundle
 
 # python
 __pycache__/

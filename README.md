@@ -23,55 +23,56 @@ quintile long/short portfolio rebalanced after each earnings season.
 
 <!-- RESULTS:START -->
 
-> [!WARNING]
-> **These numbers come from the synthetic demo** (`earnsig demo`): fake prices, fake documents and a
-> mock scorer that peeks at a planted signal. They show what the report looks like and prove the
-> plumbing works. They say nothing about real markets. Run the real pipeline to replace this section.
+> [!CAUTION]
+> **Every document in this sample predates the scorer's training cutoff (2026-06-30).** The model may have read news about how these stocks moved
+> after each release, so a positive result here can reflect memory rather than reading skill.
+> Treat it as an upper bound. A clean test needs a model trained before the sample period
+> (see *Biases* below).
 
-_Sample: 1,600 documents, 80 stocks, 2021-01-20 to 2025-11-20. Scorer: `mock (synthetic demo)`. Abnormal returns vs. market benchmark. Costs: 10 bps one-way + 50 bps/yr borrow._
+_Sample: 525 documents, 50 stocks, 2023-07-07 to 2025-12-23. Scorer: `Claude Code (haiku)`. Abnormal returns vs. market benchmark. Costs: 10 bps one-way + 50 bps/yr borrow._
 
-![Cumulative return of the long/short portfolio](results/demo/figures/cumulative_long_short.png)
+![Cumulative return of the long/short portfolio](results/figures/cumulative_long_short.png)
 
 ### Summary statistics
 
 | Metric | LLM tone | Loughran-McDonald |
 |---|---:|---:|
-| Documents with a score | 1,600 | 1,600 |
-| Mean IC (Spearman vs. CAR[+1,+20]) | +0.117 | +0.093 |
-| IC t-stat (across seasons) | 5.35 | 3.89 |
-| Seasons with positive IC | 85% of 20 | 85% of 20 |
-| Hit rate (extreme quintiles) | 55.6% | 55.0% |
-| Mean CAR, top / bottom quintile | 1.06% / -1.15% | 0.76% / -1.20% |
-| **Seasonal L/S, net:** annual return | 0.5% | 1.4% |
-| Annual volatility | 10.1% | 10.4% |
-| Sharpe ratio, net (gross) | 0.05 (0.20) | 0.14 (0.30) |
-| Max drawdown | -30.4% | -23.4% |
-| Turnover per rebalance (full swap = 400%) | 271% | 296% |
-| Holding periods with a gain | 50% | 50% |
-| **Event-time L/S (days +1..+20), net:** Sharpe | 0.89 | 0.63 |
-| Max drawdown | -16.4% | -23.7% |
-| **FF5 + momentum:** alpha, annual (t) | 0.6% (0.13) | 1.6% (0.34) |
-| Market beta | -0.03 | -0.06 |
-| SMB / HML / RMW / CMA | +0.04 / +0.01 / +0.03 / +0.00 | +0.05 / -0.01 / +0.03 / +0.02 |
-| Momentum beta | -0.04 | -0.06 |
-| R² of factor regression | 0.01 | 0.01 |
-| Pooled IC after LLM training cutoff (n) | +0.139 (640) | +0.103 (640) |
+| Documents with a score | 525 | 525 |
+| Mean IC (Spearman vs. CAR[+1,+20]) | +0.082 | -0.038 |
+| IC t-stat (across seasons) | 1.98 | -0.74 |
+| Seasons with positive IC | 80% of 10 | 50% of 10 |
+| Hit rate (extreme quintiles) | 55.5% | 52.6% |
+| Mean CAR, top / bottom quintile | 0.41% / -0.57% | -0.27% / 0.12% |
+| **Seasonal L/S, net:** annual return | 2.7% | -3.3% |
+| Annual volatility | 12.8% | 12.3% |
+| Sharpe ratio, net (gross) | 0.21 (0.32) | -0.27 (-0.19) |
+| Max drawdown | -18.1% | -19.9% |
+| Turnover per rebalance (full swap = 400%) | 212% | 118% |
+| Holding periods with a gain | 60% | 60% |
+| **Event-time L/S (days +1..+20), net:** Sharpe | 1.41 | -0.94 |
+| Max drawdown | -14.3% | -46.6% |
+| **FF5 + momentum:** alpha, annual (t) | 1.5% (0.22) | -7.6% (-1.20) |
+| Market beta | -0.09 | +0.22 |
+| SMB / HML / RMW / CMA | -0.18 / -0.25 / -0.19 / +0.02 | +0.08 / -0.23 / -0.06 / -0.01 |
+| Momentum beta | +0.20 | +0.20 |
+| R² of factor regression | 0.23 | 0.28 |
+| Pooled IC after LLM training cutoff (n) | none: all documents predate the cutoff | none: all documents predate the cutoff |
 
-![Drift by quintile](results/demo/figures/car_by_quintile.png)
+![Drift by quintile](results/figures/car_by_quintile.png)
 
 ### Which topic matters most? (stretch goal)
 
 | Signal | Mean IC | IC t-stat | Hit rate | Seasonal L/S Sharpe (net) | Event-time L/S Sharpe (net) |
 |---|---:|---:|---:|---:|---:|
-| LLM tone | +0.117 | 5.35 | 55.6% | 0.05 | 0.89 |
-| LLM: guidance | +0.107 | 4.64 | 55.3% | -0.03 | 0.78 |
-| LLM: margins | +0.106 | 5.55 | 58.0% | -0.03 | 0.72 |
-| LLM: demand | +0.089 | 4.87 | 56.9% | 0.05 | 0.90 |
-| LLM: overall | +0.082 | 3.63 | 56.4% | 0.21 | 0.86 |
-| LLM: change vs. prior | +0.060 | 2.55 | 53.5% | -0.48 | 0.15 |
-| Loughran-McDonald | +0.093 | 3.89 | 55.0% | 0.14 | 0.63 |
+| LLM tone | +0.082 | 1.98 | 55.5% | 0.21 | 1.41 |
+| LLM: guidance | +0.059 | 1.67 | 56.0% | 0.27 | 1.55 |
+| LLM: margins | +0.067 | 1.07 | 58.4% | 0.51 | 0.56 |
+| LLM: demand | -0.007 | -0.18 | 48.8% | 0.77 | -0.05 |
+| LLM: overall | +0.067 | 1.17 | 54.1% | 0.52 | 0.52 |
+| LLM: change vs. prior | +0.072 | 1.73 | 56.1% | 1.12 | 0.21 |
+| Loughran-McDonald | -0.038 | -0.74 | 52.6% | -0.27 | -0.94 |
 
-![IC by signal](results/demo/figures/ic_by_signal.png)
+![IC by signal](results/figures/ic_by_signal.png)
 
 ### Scoring consistency (same document, scored twice)
 
@@ -79,10 +80,10 @@ Scored 40 documents twice with identical inputs.
 
 | Score | Exact agreement | Within ±1 | Spearman | Weighted kappa |
 |---|---:|---:|---:|---:|
-| guidance tone | 78% | 100% | 0.94 | 0.94 |
-| overall tone | 65% | 98% | 0.85 | 0.85 |
-| margins tone | 68% | 95% | 0.85 | 0.84 |
-| demand tone | 52% | 100% | 0.84 | 0.82 |
+| guidance tone | 80% | 100% | 0.84 | 0.86 |
+| overall tone | 78% | 100% | 0.86 | 0.83 |
+| margins tone | 90% | 100% | 0.95 | 0.95 |
+| demand tone | 80% | 100% | 0.91 | 0.92 |
 
 <!-- RESULTS:END -->
 

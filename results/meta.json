@@ -1,0 +1,14 @@
+{
+  "n_events": 525,
+  "n_tickers": 50,
+  "first_event": "2023-07-07",
+  "last_event": "2025-12-23",
+  "provider": "claude_code",
+  "model": "Claude Code (haiku)",
+  "benchmark": "market",
+  "hold_days": 20,
+  "cost_bps": 10,
+  "borrow_bps": 50,
+  "training_cutoff": "2026-06-30",
+  "has_factors": true
+}
