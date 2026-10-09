@@ -288,7 +288,10 @@ def read_cache(path) -> dict[str, dict]:
         with open(path) as f:
             for line in f:
                 if line.strip():
-                    rec = json.loads(line)
+                    try:
+                        rec = json.loads(line)
+                    except json.JSONDecodeError:  # half-written line from a forced stop
+                        continue
                     cache[rec["key"]] = rec
     return cache
 
@@ -322,8 +325,9 @@ def score_events(cfg: dict, events: pd.DataFrame, scorer, rep: int = 1,
             cache[rec["key"]] = rec
 
     failures = 0
-    with ThreadPoolExecutor(max_workers=llm.get("workers", 4)) as pool:
-        futures = {pool.submit(work, r): r["event_id"] for r in todo}
+    pool = ThreadPoolExecutor(max_workers=llm.get("workers", 4))
+    futures = {pool.submit(work, r): r["event_id"] for r in todo}
+    try:
         for i, fut in enumerate(as_completed(futures), 1):
             try:
                 fut.result()
@@ -337,6 +341,13 @@ def score_events(cfg: dict, events: pd.DataFrame, scorer, rep: int = 1,
                 log.warning("score failed for %s: %s", futures[fut], e)
             if i % 50 == 0:
                 log.info("  %d / %d", i, len(todo))
+    except KeyboardInterrupt:
+        stop.set()
+        log.warning("Stopping (Ctrl+C): finishing the documents already in progress. "
+                    "Everything scored so far is saved; run `earnsig score` to continue.")
+        pool.shutdown(wait=True, cancel_futures=True)
+        raise SystemExit(130)
+    pool.shutdown(wait=True)
     if failures:
         log.warning("%d documents failed to score (re-run to retry)", failures)
     if stop.is_set():

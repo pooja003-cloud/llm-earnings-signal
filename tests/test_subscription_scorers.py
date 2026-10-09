@@ -108,3 +108,38 @@ def test_usage_limit_stops_and_resumes(tmp_path):
     assert len(first) == 4
     second = score_events(cfg, events, Limited(budget=10))
     assert len(second) == 6
+
+
+def test_ctrl_c_stops_without_draining_queue(tmp_path, monkeypatch):
+    paths = Paths(tmp_path, tmp_path / "res").ensure()
+    rows = []
+    for i in range(50):
+        (tmp_path / f"d{i}.txt").write_text("doc")
+        rows.append({"event_id": f"e{i}", "ticker": "AAA", "path": f"d{i}.txt"})
+    cfg = {"paths": paths, "llm": {"prompt_version": "v1", "max_chars": 100, "anonymize": False, "workers": 1}}
+    calls = []
+
+    class Slow:
+        model = "fake"
+
+        def score(self, text, row=None):
+            calls.append(1)
+            return dict(GOOD)
+
+    real = llm_score.as_completed
+
+    def interrupted(futures):
+        it = real(futures)
+        yield next(it)
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(llm_score, "as_completed", interrupted)
+    with pytest.raises(SystemExit):
+        score_events(cfg, pd.DataFrame(rows), Slow())
+    assert len(calls) < 50  # the rest of the queue was cancelled
+
+
+def test_half_written_cache_line_is_ignored(tmp_path):
+    p = tmp_path / "cache.jsonl"
+    p.write_text(json.dumps({"key": "k1", "x": 1}) + "\n" + '{"key": "k2", "x"')
+    assert list(llm_score.read_cache(p)) == ["k1"]
