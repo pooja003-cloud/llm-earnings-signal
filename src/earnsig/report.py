@@ -291,17 +291,31 @@ def _period_table(main_cfg: dict, other_cfg: dict, cutoffs: tuple[str, str], nam
     periods.append((f"After {late:%B %Y} (new to both models)", e[e["t0"] > late]))
     head = (f"| Period | Reports | {names[0]} | {names[1]} | Finance word list |\n"
             "|---|---:|---:|---:|---:|")
-    rows = []
+    rows, small, flagged = [], [], []
+    who = (short[0], short[1], "the finance word list")
     for label, d in periods:
         if len(d) < 10:
             rows.append(f"| {label} | {len(d)} | too few reports | too few reports | too few reports |")
             continue
         cells = []
-        for col in ("llm", "llm_other", "lm"):
+        for i, col in enumerate(("llm", "llm_other", "lm")):
             r = stats.spearmanr(d[col], d[target], nan_policy="omit")
             cells.append(f"{r.statistic:+.3f} (p {r.pvalue:.2f})")
+            if len(d) < 100 and r.pvalue <= 0.05:
+                flagged.append(f"{who[i]}'s {r.statistic:+.3f} on {len(d)} reports")
+        if len(d) < 100:
+            small.append(len(d))
         rows.append(f"| {label} | {len(d)} | " + " | ".join(cells) + " |")
-    return head + "\n" + "\n".join(rows)
+    table = head + "\n" + "\n".join(rows)
+    if not small:
+        return table
+    note = ("**Small periods are noisy.** A period with fewer than 100 reports is too small to judge on its own: "
+            "with nine numbers in this table, one of them can reach p = 0.05 by chance alone.")
+    if flagged:
+        note += (" That is the most likely reading of " + " and ".join(flagged) +
+                 ": it is a single result on a tiny sample, it is not backed by the larger periods, and the two "
+                 "models agree only loosely, so it should not be read as that score having found something.")
+    return table + "\n\n" + note
 
 
 def build_comparison(main_cfg: dict, other_cfg: dict) -> str:

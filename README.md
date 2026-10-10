@@ -21,6 +21,14 @@ better than chance. But the result falls short of the usual bar for
 statistical significance (p = 0.09), and the pre-chosen trading strategy,
 rebalanced after each earnings season, lost a little after costs.
 
+**How the sample grew.** The first run used 525 reports through December 2025
+(information coefficient +0.082, p = 0.08). The study was then extended to
+August 2026 as new reports came out (+0.064, p = 0.09). The test, the code and
+the settings stayed the same; only the end date moved, and the first 10 seasons
+give exactly the same numbers in both runs. The 151 added reports therefore
+work as a fresh out-of-sample check, and on their own they showed almost no
+link (+0.02, p = 0.83). That is why the headline number went down.
+
 **The most interesting pattern (exploratory):** the effect appears in the first
 few days after a report and then fades. Trades placed right after each report
 did better than the seasonal strategy, which trades about five weeks later.
@@ -30,7 +38,10 @@ That version holds only a few stocks at a time, so it is fragile.
 internet text written after a report may have read how the stock moved. Claude
 learned from text up to June 2026, so only the 48 reports from July and August
 2026 are truly new to it. On those 48, Claude's correlation was +0.03
-(p = 0.83): no sign of skill, but far too few reports to rule it out. As a
+(p = 0.83): no sign of skill, but far too few reports to rule it out. (On the
+same 48, Llama scored +0.29 with p = 0.05. That is most likely noise: one
+result among many, on a tiny sample, from a model that agrees only loosely with
+Claude and found nothing on the 520 reports before them.) As a
 second check, the same reports were scored by Llama 3.2, a smaller model whose
 training data ends in December 2023. On the 520 reports from January 2024 to
 June 2026, which Llama cannot have read about, no score predicted returns
@@ -209,6 +220,8 @@ The main results use Claude (claude-haiku-5-5), which learned from text written 
 | January 2024 to June 2026 (new to Llama only) | 520 | +0.045 (p 0.31) | +0.006 (p 0.89) | -0.078 (p 0.08) |
 | After June 2026 (new to both models) | 48 | +0.032 (p 0.83) | +0.290 (p 0.05) | -0.013 (p 0.93) |
 
+**Small periods are noisy.** A period with fewer than 100 reports is too small to judge on its own: with nine numbers in this table, one of them can reach p = 0.05 by chance alone. That is the most likely reading of Llama's +0.290 on 48 reports: it is a single result on a tiny sample, it is not backed by the larger periods, and the two models agree only loosely, so it should not be read as that score having found something.
+
 **Do the two models read the reports alike?** On the same 676 reports they gave the identical guidance score 26% of the time and were within one step 72% of the time; the rank correlation of their scores is 0.39. That is well below the 0.7 or so that would show the two models read the reports alike, so the second model may simply be reading worse, and this test **cannot tell memory apart from weaker reading**. A larger model with an equally early cutoff would settle it.
 
 Full tables and charts for the second model: [`results/llama/`](results/llama/).
@@ -376,7 +389,7 @@ settings.
 git clone https://github.com/pooja003-cloud/llm-earnings-signal && cd llm-earnings-signal
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
-pytest -q                      # 63 automated tests, about 3 seconds
+pytest -q                      # 64 automated tests, about 3 seconds
 
 earnsig demo --readme          # practice run on made-up data, no internet needed, about 20 seconds
 ```
@@ -448,10 +461,14 @@ results/           all result tables, daily returns, holdings, scored reports an
 
 ## Next steps
 
-* **A larger clean-test model.** Score the same reports with Llama 3.1 8B, which
-  has the same December 2023 training cutoff but reads better. The settings are
+* **A larger clean-test model (the most useful remaining step).** The two
+  models agree only loosely (rank correlation 0.39), so the clean test cannot
+  tell "Claude remembered what happened" apart from "Llama reads worse". Score
+  the same reports with Llama 3.1 8B, which has the same December 2023 training
+  cutoff but reads better. If its scores agree closely with Claude's and still
+  predict nothing after 2023, memory becomes the likelier explanation. The settings are
   ready in [`config/llama8b.yaml`](config/llama8b.yaml); in the Colab notebook,
-  set `CONFIG = "config/llama8b.yaml"` and run it (about an hour on the free
+  set `CONFIG = "config/llama8b.yaml"` and run it (about one to two hours on the free
   graphics card), then run `earnsig --config config/llama8b.yaml backtest` and
   `earnsig --config config/llama8b.yaml compare`, which adds its own section.
 * **All 1,192 reports since 2021.** They are already downloaded. Scoring the 516
@@ -528,7 +545,9 @@ will look good by luck. The main test was fixed in the settings before any real
 report was scored: the `llm` score (guidance tone, with the other topics as a
 tie-breaker), its information coefficient against the 20-day return above the
 market, and the portfolio rebalanced after each earnings season. Everything else
-is labelled exploratory.
+is labelled exploratory. The sample was later extended from December 2025 to
+August 2026 with the same test and code (see "How the sample grew" above); the
+headline number fell from +0.082 to +0.064 as a result, and both are reported.
 
 **Sensitivity to the instructions and the model.** Scores depend on how the
 instructions are worded and which model version reads them. The instruction

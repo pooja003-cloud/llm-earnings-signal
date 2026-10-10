@@ -107,8 +107,9 @@ def test_period_table_three_periods(tmp_path):
     main = {"paths": Paths(tmp_path / "d", ra)}
     other = {"paths": Paths(tmp_path / "d", rb)}
     t = report._period_table(main, other, ("2026-06-30", "2023-12-31"), ("Claude", "Llama"), 20)
-    lines = t.splitlines()[2:]
+    lines = [ln for ln in t.splitlines()[2:] if ln.startswith("| ")]
     assert len(lines) == 3
+    assert "Small periods are noisy" in t  # 30 reports per period is below 100
     assert "Up to the end of December 2023" in lines[0] and "| 30 |" in lines[0]
     assert "January 2024 to June 2026 (new to Llama only)" in lines[1]
     assert "After June 2026 (new to both models)" in lines[2] and "| 30 |" in lines[2]
@@ -127,3 +128,23 @@ def test_model_version_only_counts_this_scorers_answers(tmp_path):
     assert model_version(cfg, ev) == "claude-haiku-5-5"
     cfg = {"paths": paths, "llm": {"provider": "ollama", "ollama_model": "llama3.2:3b"}}
     assert model_version(cfg, ev) == "llama3.2:3b (digest x)"
+
+
+def test_small_period_significant_result_is_flagged(tmp_path):
+    import numpy as np
+
+    rng = np.random.default_rng(1)
+    n_old, n_new = 200, 48
+    car = rng.normal(size=n_old + n_new)
+    llm_other = np.r_[rng.normal(size=n_old), car[n_old:] + rng.normal(scale=0.3, size=n_new)]
+    a = pd.DataFrame({"event_id": [f"e{i}" for i in range(n_old + n_new)],
+                      "t0": pd.to_datetime(["2025-01-15"] * n_old + ["2026-08-05"] * n_new),
+                      "llm": rng.normal(size=n_old + n_new), "lm": rng.normal(size=n_old + n_new),
+                      "car_1_20": car, "season": "s"})
+    ra, rb = tmp_path / "a", tmp_path / "b"
+    ra.mkdir(); rb.mkdir()
+    a.to_csv(ra / "events_scored.csv", index=False)
+    a.assign(llm=llm_other)[["event_id", "llm"]].to_csv(rb / "events_scored.csv", index=False)
+    t = report._period_table({"paths": Paths(tmp_path / "d", ra)}, {"paths": Paths(tmp_path / "d", rb)},
+                             ("2026-06-30", "2023-12-31"), ("Claude (x)", "Llama (y)"), 20)
+    assert "Llama's +0." in t and "on 48 reports" in t
