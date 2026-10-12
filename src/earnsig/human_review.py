@@ -76,6 +76,9 @@ def evaluate(main_cfg: dict, other_cfg: dict, labels_path=None, n_boot: int = 20
     _, key_path, default_labels = _paths(main_cfg)
     labels = pd.read_csv(labels_path or default_labels)
     labels = labels[pd.to_numeric(labels["guidance_tone"], errors="coerce").notna()].copy()
+    if len(labels) < 10:
+        raise SystemExit(f"Only {len(labels)} reports have a score in the score sheet. Fill in guidance_tone "
+                         "(-2 to +2) for each report, save the file, then run this again.")
     labels["human"] = labels["guidance_tone"].astype(int)
     if not labels["human"].isin(LEVELS).all():
         raise SystemExit("guidance_tone must be one of -2, -1, 0, 1, 2")
@@ -103,7 +106,9 @@ def verdict(res: dict, names: tuple[str, str]) -> str:
     a, b = names
     if lo > 0:
         return (f"**{a} agrees with the human scores clearly more than {b} does**, so weaker reading is a likely "
-                f"part of why {b} found nothing in the clean test. The clean test therefore says little about memory.")
+                f"part of why {b} found nothing in the clean test. That means {b}'s result cannot show whether "
+                f"{a}'s early result came from memory: that needs a model with an equally early cutoff that reads "
+                f"about as well as {a}.")
     if hi < 0:
         return (f"**{b} agrees with the human scores more than {a} does**, so weaker reading does not explain {b}'s "
                 "null result. Memory becomes the likelier explanation for the main result.")
@@ -145,6 +150,9 @@ def section(res: dict, names: tuple[str, str]) -> str:
         f"90% bootstrap interval {lo:+.2f} to {hi:+.2f}.",
         "",
         verdict(res, names),
+        "",
+        f"_This rests on one person's scores for {res['main']['n']} reports. A second independent reader, or more "
+        "reports, would make it firmer._",
         "",
         END,
     ])

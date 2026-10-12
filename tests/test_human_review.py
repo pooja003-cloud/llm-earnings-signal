@@ -81,3 +81,11 @@ def test_readme_section_is_inserted_before_next_steps(tmp_path, monkeypatch):
     assert t.index("Reading check") < t.index("## Next steps")
     human_review.update_readme(cfg, cfg, readme=readme)
     assert readme.read_text().count("Reading check") == 1
+
+
+def test_empty_score_sheet_is_refused(tmp_path):
+    cfg = _cfg(tmp_path)
+    labels = tmp_path / "labels.csv"
+    pd.DataFrame({"number": range(1, 31), "guidance_tone": "", "notes": ""}).to_csv(labels, index=False)
+    with pytest.raises(SystemExit, match="Only 0 reports"):
+        human_review.evaluate(cfg, cfg, labels_path=labels)

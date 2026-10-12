@@ -51,10 +51,13 @@ June 2026, which Llama cannot have read about, no score predicted returns
 (Claude +0.05, Llama +0.01, the word list −0.08), none of them statistically
 significant. Most of Claude's overall result comes from the 108 reports of late
 2023 (+0.23). Memory, a period when tone mattered more, or chance could each
-explain that; this sample cannot tell them apart. The two models also read the
-reports quite differently (their scores correlate only 0.39), so Llama's weak
-result may partly reflect weaker reading rather than missing memory. See the
-[clean test](#clean-test-an-older-model-that-cannot-have-seen-what-happened)
+explain that; this sample cannot tell them apart. A hand-scored check on 30
+reports shows that Llama is the weaker reader: Claude agreed closely with a
+human reader (weighted kappa 0.76, where 1 is perfect), Llama much less (0.36).
+So Llama finding nothing does not show that Claude was relying on memory; it
+may simply have missed what Claude saw. See the
+[clean test](#clean-test-an-older-model-that-cannot-have-seen-what-happened),
+the [reading check](#reading-check-both-models-compared-with-a-human)
 and the [next steps](#next-steps).
 
 ![Growth of $1 in the long/short portfolios](results/figures/cumulative_long_short.png)
@@ -244,12 +247,15 @@ Full tables and charts for the second model: [`results/llama/`](results/llama/).
   in late 2023), or **better memory of older events** (more has been written
   about them, so a model may recall them more easily). This study cannot tell
   these apart.
-* **The test cannot separate memory from reading quality.** Llama 3.2 3B is a
-  small model, and its scores agree only loosely with Claude's (rank correlation
-  0.39). If the two agreed closely and Llama still found nothing, memory would
-  be the likelier explanation for Claude's result. As it is, Llama may simply be
-  reading worse. Running the same test with the larger Llama 3.1 8B (same
-  December 2023 cutoff) would weaken that objection.
+* **The test cannot separate memory from reading quality, because Llama reads
+  worse.** Llama 3.2 3B is a small model, and its scores agree only loosely with
+  Claude's (rank correlation 0.39). The
+  [reading check](#reading-check-both-models-compared-with-a-human) confirms
+  that the gap is Llama's: on 30 hand-scored reports Claude matched the human
+  reader far better (weighted kappa 0.76 against 0.36; the difference of 0.41
+  has a 90% interval of 0.13 to 0.66). So Llama's null result says little about
+  memory. A model with the same December 2023 cutoff that reads about as well
+  as Claude, such as the larger Llama 3.1 8B, is needed to settle it.
 * **Claude's own clean test is too small to settle anything.** Only 48 reports
   (July and August 2026) are newer than Claude's training data. Claude scored
   +0.03 on them (p = 0.83). Llama scored +0.29 (p = 0.05) on the same 48, but
@@ -394,7 +400,7 @@ settings.
 git clone https://github.com/pooja003-cloud/llm-earnings-signal && cd llm-earnings-signal
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
-pytest -q                      # 68 automated tests, about 3 seconds
+pytest -q                      # 69 automated tests, about 3 seconds
 
 earnsig demo --readme          # practice run on made-up data, no internet needed, about 20 seconds
 ```
@@ -464,28 +470,47 @@ results/           all result tables, daily returns, holdings, scored reports an
 
 ---
 
+<!-- HUMAN_EVAL:START -->
+
+## Reading check: both models compared with a human
+
+The clean test cannot tell whether Llama found nothing because it has no memory of what happened or because it reads less well. To check reading quality directly, the author scored 30 randomly chosen reports by hand on the same −2 to +2 guidance scale, seeing the same text the models saw (names and dates hidden), without looking at the models' scores or the stock moves.
+
+| Comparison | Reports | Same score | Within one step | Rank correlation | Agreement beyond chance (weighted kappa, 1 = perfect) |
+|---|---:|---:|---:|---:|---:|
+| Claude versus the human | 30 | 63% | 97% | 0.84 | 0.76 |
+| Llama versus the human | 30 | 30% | 83% | 0.46 | 0.36 |
+| Claude versus Llama | 30 | 37% | 77% | 0.56 | 0.45 |
+
+Difference in agreement with the human (Claude minus Llama, weighted kappa): +0.41, 90% bootstrap interval +0.13 to +0.66.
+
+**Claude agrees with the human scores clearly more than Llama does**, so weaker reading is a likely part of why Llama found nothing in the clean test. That means Llama's result cannot show whether Claude's early result came from memory: that needs a model with an equally early cutoff that reads about as well as Claude.
+
+_This rests on one person's scores for 30 reports. A second independent reader, or more reports, would make it firmer._
+
+<!-- HUMAN_EVAL:END -->
+
+---
+
 ## Next steps
 
-* **A human reading check (cheapest and most direct).** The clean test cannot
-  tell "Llama has no memory" apart from "Llama reads worse". Scoring about 30
-  reports by hand and comparing both models with those scores tests reading
-  quality directly. If Llama disagrees with the human much more than Claude
-  does, weaker reading is the likelier explanation. The tools are ready:
-  `earnsig review-sample` saves 30 random reports exactly as the models saw them
-  (names and dates hidden, numbered 01 to 30) with the scoring rules and an
-  empty score sheet, `labels/human_labels.csv`. After filling it in,
-  `earnsig review-eval` compares both models with the human scores and adds a
-  section to this page.
-* **A larger clean-test model.** The two
-  models agree only loosely (rank correlation 0.39), so the clean test cannot
-  tell "Claude remembered what happened" apart from "Llama reads worse". Score
+* **A larger clean-test model (now the most useful step).** The
+  [reading check](#reading-check-both-models-compared-with-a-human) showed that
+  Llama 3.2 3B reads the reports much less like a human than Claude does, so its
+  clean test cannot tell "Claude remembered what happened" apart from "Llama
+  reads worse". Score
   the same reports with Llama 3.1 8B, which has the same December 2023 training
   cutoff but reads better. If its scores agree closely with Claude's and still
-  predict nothing after 2023, memory becomes the likelier explanation. The settings are
+  predict nothing after 2023, memory becomes the likelier explanation. Afterwards,
+  `earnsig review-eval --other config/llama8b.yaml` checks it against the same
+  30 hand scores, to confirm it reads better before trusting its clean test. The settings are
   ready in [`config/llama8b.yaml`](config/llama8b.yaml); in the Colab notebook,
   set `CONFIG = "config/llama8b.yaml"` and run it (about one to two hours on the free
   graphics card), then run `earnsig --config config/llama8b.yaml backtest` and
   `earnsig --config config/llama8b.yaml compare`, which adds its own section.
+* **A second human reader.** The reading check rests on one person's scores
+  for 30 reports. Running `earnsig review-sample` again with more reports, or
+  having someone else fill in the same sheet, would make it firmer.
 * **All 1,192 reports since 2021.** They are already downloaded. Scoring the 516
   reports from before July 2023 with Claude (set `analysis_start: "2021-01-01"`
   in `config/config.yaml`) would roughly double the number of earnings seasons
@@ -521,7 +546,10 @@ returns, and that Claude's own result on them is also weak (+0.05). Llama did
 better on the reports it could have read about (+0.09) than on those 520
 (+0.01), which fits the memory explanation, but with only 108 earlier reports
 that difference could also be chance. Llama is also a much smaller model, so
-part of its weaker result may be weaker reading.
+part of its weaker result may be weaker reading, and the
+[reading check](#reading-check-both-models-compared-with-a-human) suggests it
+is: on 30 hand-scored reports, Llama agreed with the human reader much less
+than Claude did.
 
 Where the cutoff dates come from: Anthropic's
 [Claude Haiku 5.5 model page](https://platform.claude.com/docs/en/models/haiku-5-5/overview)
