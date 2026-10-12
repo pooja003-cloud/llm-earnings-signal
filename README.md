@@ -8,6 +8,9 @@ then checks whether those ratings predict how the stock does over the following
 month, and whether the model does better than a classic method that simply
 counts positive and negative words.
 
+**Short answer:** a weak link that is not statistically significant, and that
+mostly disappears on reports newer than the models' training data.
+
 ---
 
 ## In short
@@ -65,7 +68,7 @@ and the [next steps](#next-steps).
 | How big was the difference in returns? | Small. Over 20 days the most upbeat fifth of reports roughly matched the market (−0.02%), while the most gloomy fifth trailed it by 0.41%. |
 | Could you have made money trading on it? | Not with the pre-chosen strategy: rebalancing after each earnings season gave a Sharpe ratio of −0.14 after costs. Trading right after each report looked better (Sharpe ratio 0.73), but that is exploratory and rests on just 2 stocks on each side on a typical day, so its margin of error is about ±0.64. |
 | How long does the effect last? | A few days. Starting the same trades 5 trading days later cut the Sharpe ratio from 0.73 to 0.21, and 10 days later it turned negative. |
-| Which part of the report mattered most? | What management said about **future guidance**, and how that changed since the previous quarter, had the strongest results. Comments on **customer demand** showed nothing. None of the topics is significant on its own. |
+| Which part of the report mattered most? | What management said about **future guidance**, and how that changed since the previous quarter, had the strongest results. The change since last quarter passes the usual 5% bar on its own (p ≈ 0.02) and guidance is close (p ≈ 0.05), but with six language model scores tested, the bar becomes about 0.008, and neither clears it. So they are leads worth testing on new data, not findings. Comments on **customer demand** showed nothing. |
 | Did it hold up on reports a model could not have read about? | No. On the 48 reports after Claude's training cutoff (July and August 2026), Claude's correlation was +0.03 (p = 0.83). On the 520 reports from January 2024 to June 2026, new to Llama, Claude scored +0.05 (p = 0.31) and Llama +0.01 (p = 0.89). The overall result rests mostly on late 2023. |
 | Does the model give the same answer twice? | Yes. Scoring the same reports a second time gave the identical guidance rating 80% of the time, and it was never more than one step apart. |
 
@@ -166,15 +169,17 @@ _A note on noise: this page reports dozens of statistics, so one or two with a t
 
 Each report also got separate scores for what management said about future guidance, profit margins and customer demand.
 
-| Score | Information coefficient | t-statistic | Hit rate | Sharpe ratio, seasonal portfolio | Sharpe ratio, 20-day portfolio |
-|---|---:|---:|---:|---:|---:|
-| Language model tone | +0.064 | 1.83 | 55.6% | -0.14 | 0.73 |
-| Language model: guidance | +0.060 | 2.15 | 55.9% | -0.49 | 0.90 |
-| Language model: margins | +0.035 | 0.66 | 58.9% | 0.21 | 0.44 |
-| Language model: demand | -0.034 | -0.89 | 49.3% | 0.91 | -0.40 |
-| Language model: overall tone | +0.040 | 0.71 | 53.7% | 0.57 | 0.38 |
-| Language model: change since last quarter | +0.094 | 2.84 | 56.0% | 0.24 | 0.05 |
-| Finance word list | -0.054 | -1.33 | 48.9% | -0.80 | -1.39 |
+| Score | Information coefficient | t-statistic | p-value | Hit rate | Sharpe ratio, seasonal portfolio | Sharpe ratio, 20-day portfolio |
+|---|---:|---:|---:|---:|---:|---:|
+| Language model tone | +0.064 | 1.83 | 0.092 | 55.6% | -0.14 | 0.73 |
+| Language model: guidance | +0.060 | 2.15 | 0.052 | 55.9% | -0.49 | 0.90 |
+| Language model: margins | +0.035 | 0.66 | 0.521 | 58.9% | 0.21 | 0.44 |
+| Language model: demand | -0.034 | -0.89 | 0.389 | 49.3% | 0.91 | -0.40 |
+| Language model: overall tone | +0.040 | 0.71 | 0.493 | 53.7% | 0.57 | 0.38 |
+| Language model: change since last quarter | +0.094 | 2.84 | 0.016 | 56.0% | 0.24 | 0.05 |
+| Finance word list | -0.054 | -1.33 | 0.209 | 48.9% | -0.80 | -1.39 |
+
+**Testing 6 language model scores at once.** With this many scores, one may pass the usual 5% bar by luck, so a stricter bar applies: 5% divided by 6, about 0.008 (the Bonferroni correction). Passes 5% on its own: change since last quarter (p = 0.016). Close to it: the main tone score (p = 0.092), guidance (p = 0.052). None survives the correction, so these are leads worth testing on new data, not findings.
 
 ![Information coefficient by score](results/figures/ic_by_signal.png)
 
@@ -311,7 +316,7 @@ period. When the limit is reached, scoring stops cleanly, and running
 Haiku model uses the least of the allowance.
 
 With `ollama`, an older model is an advantage: Llama 3.2 learned from text up to
-December 2023, so it cannot have read about 2024 and 2025 stock moves. The
+December 2023, so it cannot have read about stock moves from 2024 onwards. The
 ready-made settings in [`config/llama.yaml`](config/llama.yaml) score the same
 reports with it and keep its results separate in `results/llama/`. Small local
 models read less accurately than Claude, so comparing the two is a useful
@@ -389,7 +394,7 @@ settings.
 git clone https://github.com/pooja003-cloud/llm-earnings-signal && cd llm-earnings-signal
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
-pytest -q                      # 64 automated tests, about 3 seconds
+pytest -q                      # 68 automated tests, about 3 seconds
 
 earnsig demo --readme          # practice run on made-up data, no internet needed, about 20 seconds
 ```
@@ -461,7 +466,17 @@ results/           all result tables, daily returns, holdings, scored reports an
 
 ## Next steps
 
-* **A larger clean-test model (the most useful remaining step).** The two
+* **A human reading check (cheapest and most direct).** The clean test cannot
+  tell "Llama has no memory" apart from "Llama reads worse". Scoring about 30
+  reports by hand and comparing both models with those scores tests reading
+  quality directly. If Llama disagrees with the human much more than Claude
+  does, weaker reading is the likelier explanation. The tools are ready:
+  `earnsig review-sample` saves 30 random reports exactly as the models saw them
+  (names and dates hidden, numbered 01 to 30) with the scoring rules and an
+  empty score sheet, `labels/human_labels.csv`. After filling it in,
+  `earnsig review-eval` compares both models with the human scores and adds a
+  section to this page.
+* **A larger clean-test model.** The two
   models agree only loosely (rank correlation 0.39), so the clean test cannot
   tell "Claude remembered what happened" apart from "Llama reads worse". Score
   the same reports with Llama 3.1 8B, which has the same December 2023 training
@@ -507,6 +522,16 @@ better on the reports it could have read about (+0.09) than on those 520
 (+0.01), which fits the memory explanation, but with only 108 earlier reports
 that difference could also be chance. Llama is also a much smaller model, so
 part of its weaker result may be weaker reading.
+
+Where the cutoff dates come from: Anthropic's
+[Claude Haiku 5.5 model page](https://platform.claude.com/docs/en/models/haiku-5-5/overview)
+gives a training data cutoff of June 2026. Meta's model cards for
+[Llama 3.2](https://github.com/meta-llama/llama-models/blob/main/models/llama3_2/MODEL_CARD.md)
+and [Llama 3.1](https://github.com/meta-llama/llama-models/blob/main/models/llama3_1/MODEL_CARD.md)
+both say "The pretraining data has a cutoff of December 2023." A published
+cutoff is approximate: a little later text can slip in, and coverage of the
+last few months before the cutoff is thin. So the reports just after each
+cutoff are the least certain part of the clean test.
 
 **A small sample.** 50 companies over about 13 quarters is 676 reports and only
 13 earnings seasons, so every number has a wide margin of error. With 13

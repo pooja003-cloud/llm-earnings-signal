@@ -103,6 +103,20 @@ def cmd_compare(cfg, a):
     log.info("README.md comparison section updated")
 
 
+def cmd_review_sample(cfg, a):
+    from .human_review import make_sample
+
+    make_sample(cfg, n=a.n)
+    print("Read the reports in data/human_review/ (01.txt, 02.txt, ...) using data/human_review/RUBRIC.txt,\n"
+          "write your guidance score (-2 to +2) for each in labels/human_labels.csv, then run: earnsig review-eval")
+
+
+def cmd_review_eval(cfg, a):
+    from .human_review import default_other, update_readme
+
+    print(update_readme(cfg, default_other(a.other)))
+
+
 def cmd_demo(cfg, a):
     from .synthetic import generate
 
@@ -147,6 +161,10 @@ def main(argv=None):
     sub.add_parser("report", help="write results into README.md")
     k2 = sub.add_parser("compare", help="add a README section comparing this config's model with the main one")
     k2.add_argument("--main", default=None, help="config of the main results (default config/config.yaml)")
+    r1 = sub.add_parser("review-sample", help="pick reports for you to score by hand (reading-quality check)")
+    r1.add_argument("--n", type=int, default=30)
+    r2 = sub.add_parser("review-eval", help="compare both models with your hand scores and update README.md")
+    r2.add_argument("--other", default=None, help="config of the second model (default config/llama.yaml)")
     d = sub.add_parser("demo", help="run everything offline on synthetic data")
     d.add_argument("--readme", action="store_true", help="also write the demo results into README.md")
     sub.add_parser("all", help="run every real step in order")
@@ -156,7 +174,7 @@ def main(argv=None):
     for noisy in ("httpx", "anthropic", "urllib3", "yfinance", "matplotlib"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
     cfg = load_config(a.config)
-    globals()[f"cmd_{a.cmd}"](cfg, a)
+    globals()[f"cmd_{a.cmd.replace('-', '_')}"](cfg, a)
 
 
 if __name__ == "__main__":

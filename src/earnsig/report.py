@@ -141,16 +141,48 @@ def entry_delay_table(path) -> str:
 
 
 def topic_table(s: pd.DataFrame, topics: list[str]) -> str:
-    lines = ["| Score | Information coefficient | t-statistic | Hit rate | Sharpe ratio, seasonal portfolio | "
-             "Sharpe ratio, 20-day portfolio |",
-             "|---|---:|---:|---:|---:|---:|"]
+    lines = ["| Score | Information coefficient | t-statistic | p-value | Hit rate | "
+             "Sharpe ratio, seasonal portfolio | Sharpe ratio, 20-day portfolio |",
+             "|---|---:|---:|---:|---:|---:|---:|"]
     for t in topics:
         if t in s.index:
             r = s.loc[t]
             lines.append(f"| {LABELS.get(t, t)} | {_num(r['mean_ic'], 3, True)} | {_num(r['ic_t'])} | "
-                         f"{_pct(r['hit_rate'])} | {_num(r.get('seasonal_net_sharpe', np.nan))} | "
-                         f"{_num(r.get('event_net_sharpe', np.nan))} |")
+                         f"{_num(r.get('ic_p', np.nan), 3)} | {_pct(r['hit_rate'])} | "
+                         f"{_num(r.get('seasonal_net_sharpe', np.nan))} | {_num(r.get('event_net_sharpe', np.nan))} |")
     return "\n".join(lines)
+
+
+def multiple_testing_note(s: pd.DataFrame, llm_scores: list[str], alpha: float = 0.05) -> str:
+    """Which language model scores pass 5% on their own, and which survive a Bonferroni correction."""
+    rows = [(t, s.loc[t]) for t in llm_scores if t in s.index and pd.notna(s.loc[t].get("ic_p", np.nan))]
+    if not rows:
+        return ""
+    bar = alpha / len(rows)
+    nominal = [(t, r) for t, r in rows if r["ic_p"] < alpha]
+    near = [(t, r) for t, r in rows if alpha <= r["ic_p"] < 0.10]
+    survive = [t for t, r in nominal if r["ic_p"] < bar]
+
+    def short(t):
+        return "the main tone score" if t == "llm" else LABELS.get(t, t).replace("Language model: ", "")
+
+    def name(t, r):
+        return f"{short(t)} (p = {r['ic_p']:.3f})"
+
+    out = (f"**Testing {len(rows)} language model scores at once.** With this many scores, one may pass the usual "
+           f"5% bar by luck, so a stricter bar applies: 5% divided by {len(rows)}, about {bar:.3f} "
+           "(the Bonferroni correction). ")
+    if nominal:
+        out += ("Passes 5% on its own: " + ", ".join(name(t, r) for t, r in nominal) + ". ")
+    if near:
+        out += ("Close to it: " + ", ".join(name(t, r) for t, r in near) + ". ")
+    if survive:
+        out += ("Still passes after the correction: " + ", ".join(short(t) for t in survive) + ".")
+    elif nominal:
+        out += ("None survives the correction, so these are leads worth testing on new data, not findings.")
+    else:
+        out += "None passes even the usual 5% bar."
+    return out
 
 
 def consistency_table(c: dict) -> str:
@@ -225,6 +257,7 @@ def build_section(cfg: dict, include_chart: bool = True) -> str:
               "Each report also got separate scores for what management said about future guidance, profit "
               "margins and customer demand.", "",
               topic_table(s, [prim, *cfg["signals"].get("topics", []), base]), "",
+              multiple_testing_note(s, [prim, *cfg["signals"].get("topics", [])]), "",
               f"![Information coefficient by score]({rel}/figures/ic_by_signal.png)", ""]
     cons = rd / "consistency.json"
     if cons.exists():

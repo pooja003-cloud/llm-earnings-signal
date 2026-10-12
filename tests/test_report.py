@@ -148,3 +148,13 @@ def test_small_period_significant_result_is_flagged(tmp_path):
     t = report._period_table({"paths": Paths(tmp_path / "d", ra)}, {"paths": Paths(tmp_path / "d", rb)},
                              ("2026-06-30", "2023-12-31"), ("Claude (x)", "Llama (y)"), 20)
     assert "Llama's +0." in t and "on 48 reports" in t
+
+
+def test_multiple_testing_note():
+    s = pd.DataFrame({"ic_p": [0.09, 0.053, 0.015, 0.4, 0.5, 0.6]},
+                     index=["llm", "llm_guidance", "llm_delta", "llm_margins", "llm_demand", "llm_overall"])
+    note = report.multiple_testing_note(s, list(s.index))
+    assert "about 0.008" in note
+    assert "change since last quarter (p = 0.015)" in note
+    assert "guidance (p = 0.053)" in note and "the main tone score (p = 0.090)" in note
+    assert "None survives the correction" in note
